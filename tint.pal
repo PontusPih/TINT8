@@ -1,0 +1,103 @@
+/ TINT Is Not T***** in PALbart assembly
+
+/
+/ Global symbols
+/
+
+/
+/ Main loop.
+/
+       *200
+/
+/ Check for input
+/
+
+/
+/ Figure out what to do
+/
+
+/
+/ Do one of:
+/
+
+/
+/ 1. Perform rotation
+/
+
+/
+/ 2. Perform drop to bottom
+/
+
+/
+/ 3. Perform sideways move
+/
+
+/
+/ 4. Perform normal drop
+/
+
+/
+/ Check possibility
+/
+
+/
+/ Wallkick translation
+/
+
+/
+/ Check if we have reached "bottom" and timer expired.
+/
+
+/
+/ Spawn new block
+/
+
+/
+/ Check for solid lines
+/
+
+/
+/ Erase lines
+/
+
+/
+/ Gravitate field
+/
+
+/
+/ Calculate hat of seven
+/
+
+/
+/ Erase "oldpos"
+/
+
+/
+/ Draw "newpos"
+/
+
+/
+/ Draw field
+/
+
+/
+/ Blank field
+/
+
+/
+/ Output one char
+/
+
+/
+/ Draw next block
+/
+
+/
+/ Global variables
+/
+
+/
+/ Game field
+/
+       *400
+$
