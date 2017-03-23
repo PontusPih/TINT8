@@ -4,6 +4,22 @@
 / Global symbols
 /
 
+/ ASCII chars
+       ESC=033
+       SPACE=040
+       LF=012
+       CR=015
+       BRA=133
+
+/ Autoindex locations
+      AIX=010
+      AIY=011
+
+/ Constants
+      FLDW=012      /Field height
+      FLDH=026      /Field width
+      FLDS=012^026  /Total size
+
 /
 / Main loop.
 /
@@ -80,14 +96,190 @@
 / Draw field
 /
 
+DRAWF, 0
+       CLA
+       TAD (FIELD-01+FLDW+FLDW   / Skip two invisible top lines
+       DCA AIX
+       TAD (FLDH-02              / Loop over visible rows
+       CIA
+       DCA LOOPI
+ROWS,
+       TAD (FLDW                 / Loop over columns
+       CIA
+       DCA LOOPJ
+       TAD ("<                   / Start by outputing <!
+       JMS PUTC
+       TAD ("!
+       JMS PUTC
+COLS,
+       TAD I AIX                 / Get cell
+       SNA                       / Nonzero means a block
+       JMP ISBLNK
+ISBLCK,
+       TAD ("[
+       JMS PUTC
+       TAD ("]
+       JMS PUTC
+       JMP ENDCELL
+ISBLNK,
+       TAD (".
+       JMS PUTC
+       TAD (".
+       JMS PUTC
+ENDCELL,
+       ISZ LOOPJ
+       JMP COLS                  / Column loop end
+       TAD ("!                   / End by outputing !>
+       JMS PUTC
+       TAD (">
+       JMS PUTC
+       TAD (MOVD-1               / And move cursor down and back
+       JMS PUTS
+       TAD (MOVB-1
+       JMS PUTS
+       ISZ LOOPI                 / Loop over number of rows
+       JMP ROWS
+       JMP I DRAWF               / Return
+
 /
 / Blank field
 /
 
+BLNKF, 0
+       CLA
+       TAD (FLDS                 / Get field size
+       CIA
+       DCA LOOPI
+       TAD (FIELD-1              / Get field location
+       DCA AIX
+BLOOP,
+       DCA I AIX                 / Put 0 in FIELD through AIX
+       ISZ LOOPI
+       JMP BLOOP
+       JMP I BLNKF               / Return
+
 /
-/ Output one char
+/ Output one char, clear AC
 /
 
+PUTC,  0
+       TLS
+       TSF
+       JMP .-1
+       CLA
+       JMP I PUTC
+
+/
+/ Output null terminated string, one char per word. AC is loc-1
+/
+PUTS,   0
+        DCA AIY
+PLOOP,
+        TAD I AIY
+        SNA
+        JMP I PUTS
+        JMS PUTC
+        JMP PLOOP
+
+PAGE
+
+/
+/ Output null terminated mixed case packed string. AC is string loc-1
+/
+PTMP,   0
+PUTPS,  0
+        DCA AIY
+PSLOOP,
+        TAD I AIY             / Load first word
+        DCA TMP               / Stash word
+        TAD TMP
+        BSW                   / Move first half down
+        AND (077)
+        JMS PUTB              / Unpack one byte
+        TAD TMP               / Get next byte
+        AND (077)
+        JMS PUTB
+        JMP PSLOOP
+PUTB,   0
+        SNA
+        JMP I PUTPS           / Null byte, return
+        DCA PTMP              / Stash byte
+        TAD PTMP
+        AND (037)             / Check if space char (five zero bits)
+        SZA
+        JMP NOSPC
+        TAD (040)             / Set space bit otherwise we output `
+        JMP ISSPC             / TODO check for actual space, now we miss @
+NOSPC,
+        CLA
+        /TAD PTMP / For uppercase version
+        /AND (40)
+        /SNA CLA
+        TAD (100)             / Not space? set char bit
+        TAD PTMP
+ISSPC,
+        JMS PUTC              / Output
+        JMP I PUTB
+
+/
+/ Move to X,Y
+/
+MOVXY,  ESC
+        BRA  / [
+YPOS,   0
+        0
+        073  / ;
+XPOS,   0
+        0
+        0110 / H
+        0
+
+/
+/ Move up
+/
+MOVU,  ESC
+       BRA
+UP,    "1
+       "A
+       0
+
+/
+/ Move down
+/
+MOVD,  ESC
+       BRA
+DOWN,  "1
+       "B
+       0
+
+/
+/ Move forward
+/
+MOVF, ESC
+      BRA
+FORW, "2
+      "4
+      "C
+      0
+
+/
+/ Move backward
+/
+MOVB, ESC
+      BRA
+BACK, "2
+      "4
+      "D
+      0
+
+/
+/ Clear screen
+/
+ERASE,  ESC
+        133 / [
+        "2
+        "J
+        0
 /
 / Draw next block
 /
@@ -96,8 +288,15 @@
 / Global variables
 /
 
+TMP,   0
+LOOPI, 0
+LOOPJ, 0
+
 /
-/ Game field
+/ Reserve space for game field
 /
-       *400
+       PAGE
+FIELD, 0
+       *FIELD+FLDS
+FIELDEND, HLT
 $
