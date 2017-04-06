@@ -117,7 +117,7 @@ INIT,  0
 /
 / Draw field
 /
-
+PAGE
 DRAWF, 0
        CLA
        TAD (FIELD-01+FLDW+FLDW   / Skip two invisible top lines
@@ -163,6 +163,86 @@ ENDCELL,
        JMP ROWS
        JMP I DRAWF               / Return
 
+/
+/ Draw shape, AC contains location
+/
+SSIZ,  0
+DRAWS, 0
+       DCA AIX
+       TAD I AIX
+       DCA SSIZ
+       TAD SSIZ
+       CIA
+       DCA LOOPJ
+BROWS,
+       CLA
+       TAD SSIZ
+       CIA
+       DCA LOOPI
+BCOLS,
+       TAD I AIX
+       SZA
+       JMP DBLCK
+DBLNK,
+       TAD (MOVF-1
+       JMS PUTS
+       TAD (MOVF-1
+       JMS PUTS
+       JMP DCONT
+DBLCK,
+       CLA
+       TAD ("[
+       JMS PUTC
+       TAD ("]
+       JMS PUTC
+DCONT,
+       ISZ LOOPI
+       JMP BCOLS
+       TAD ("0       / Move back 3
+       DCA BACK
+       TAD ("0
+       TAD SSIZ
+       TAD SSIZ
+       DCA BACK+1
+       TAD (MOVB-1
+       JMS PUTS
+       TAD (MOVD-1
+       JMS PUTS      / Move down
+       ISZ LOOPJ
+       JMP BROWS
+       JMP I DRAWS
+
+PAGE
+
+SHAPEL,3;0;0;1
+         1;1;1
+         0;0;0
+
+SHAPEJ,3;1;0;0
+         1;1;1
+         0;0;0
+
+SHAPES,3;0;1;1
+         1;1;0
+         0;0;0
+
+SHAPEZ,3;1;1;0
+         0;1;1
+         0;0;0
+
+SHAPET,3;0;1;0
+         1;1;1
+         0;0;0
+
+SHAPEO,4;0;1;1;0
+         0;1;1;0
+         0;0;0;0
+         0;0;0;0
+
+SHAPEI,4;0;0;0;0
+         1;1;1;1
+         0;0;0;0
+         0;0;0;0
 /
 / Blank field
 /
