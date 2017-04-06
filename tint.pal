@@ -33,6 +33,28 @@
 /
 
 /
+/ Init
+/
+
+INIT,  0
+       TAD (ERASE-1)   / Load erase escape sequence
+       JMS PUTS        / Output to terminal
+       TAD ("0)        / TODO subroutine to change int to ascii digit
+       DCA XPOS
+       TAD ("0)
+       DCA XPOS+1
+       TAD ("0)
+       DCA YPOS
+       TAD ("0)
+       DCA YPOS+1
+       TAD (MOVXY-1)
+       JMS PUTS
+       JMS BLNKF       / Reset game field
+       JMS DRAWF       / Draw empty field
+       JMP I INIT      / Return
+
+
+/
 / Do one of:
 /
 
