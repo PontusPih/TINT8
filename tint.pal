@@ -386,6 +386,39 @@ ERASE,  ESC
 / Draw next block
 /
 
+PAGE
+
+/
+/ ITOA - Convert integer between 0-99 to double digit ascii
+/        AC has value, TARGET has memory address.
+/
+
+VALUE,  0
+TARGET, 0
+ITOA,   0
+        DCA VALUE
+        TAD ("0)
+        DCA I TARGET
+        TAD VALUE
+LOOP10, TAD (-12)
+        SPA
+        JMP NXTDGT
+        ISZ I TARGET
+        JMP LOOP10
+
+NXTDGT, ISZ TARGET
+        NOP
+        TAD (12)
+        DCA VALUE
+        TAD ("0)
+        DCA I TARGET
+        TAD VALUE
+LOOP1,  TAD (-1)
+        SPA
+        JMP I ITOA     / Return
+        ISZ I TARGET
+        JMP LOOP1
+
 /
 / Global variables
 /
