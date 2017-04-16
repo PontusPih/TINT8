@@ -19,14 +19,239 @@
       FLDW=012      /Field height
       FLDH=026      /Field width
       FLDS=012^026  /Total size
+      TERMW=0120    /Terminal width
+      NL0002=CLA CLL CML RTL / Microcoded "2"
+
+/
+/ Page zero global variables
+/
+       *20
+DOWNMV, 0         / non-zero if last movement was down
+PXPOS, 0          / Previous X,Y Position
+PYPOS, 0
+CXPOS, 0          / Current X,Y Position
+CYPOS, 0
+PSHAPE,SHAL0      / Previous shape
+PSHSIZ,3          / Previous shape size
+PSHROT,0          / Previous rotation
+CSHAPE,SHAL0      / Current shape, init to first rotation of L
+SHPSIZ,3          / Length of shape square.
+SHPROT,0          / Current rotation index
+SHPIDX,0          / Current index into SHPLST
+SHPLST,SHAPEL     / List of pointers to shapes
+       SHAPEJ
+       SHAPES
+       SHAPEZ
+       SHAPET
+       SHAPEO
+       SHAPEI
+TEMP,  0          / Temporaries used here and there
+TEMP2, 0
 
 /
 / Main loop.
 /
        *200
+       JMS INIT
+       KCC
+INPUT, KSF            / Input loop
+       JMP INPUT
+       KRB
+       DCA TEMP
+       TAD TEMP
+       TAD (-"h+0200)      / Compare to h
+       SNA CLA
+       JMP HKEY
+       TAD TEMP
+       TAD (-"j+0200)      / Compare to j
+       SNA CLA
+       JMP JKEY
+       TAD TEMP
+       TAD (-"k+0200)      / Compare to k
+       SNA CLA
+       JMP KKEY
+       TAD TEMP
+       TAD (-"l+0200)      / Compare to l
+       SNA CLA
+       JMP LKEY
+       JMP INPUT
 /
-/ Check for input
+/ Move left
 /
+HKEY,
+       TAD CXPOS
+       CIA
+       CMA
+       DCA CXPOS
+       JMP UPDATE
+/
+/ Move down
+/
+JKEY,
+       ISZ CYPOS
+       ISZ DOWNMV
+       JMP UPDATE
+/
+/ Rotate clockwise
+/
+KKEY,
+       TAD CSHAPE          / Current shape
+       DCA PSHAPE          / Store as previous
+       TAD SHPSIZ          / Current size
+       DCA PSHSIZ          / Store as previous
+       TAD SHPROT          / Get current rotation
+       DCA PSHROT          / Save as previous
+
+       TAD SHPROT          / Get again
+       IAC                 / Increment
+       AND (3)             / Wrap arround so SHPROT is 0..3
+       DCA SHPROT          / Store
+       TAD (SHPLST)        / Get list of shapes
+       TAD SHPIDX          / Add current shape index
+       DCA CSHAPE          / Store pointer (use CSHAPE as temp store)
+       TAD I CSHAPE        / Dereference to get shape descriptor pointer
+       IAC                 / Skip size
+       TAD SHPROT          / Jump to current rotation
+       DCA CSHAPE          / Store pointer (again CSHAPE as temp store)
+       TAD I CSHAPE        / Get current shapes current rotation
+       DCA CSHAPE          / Store as current shape
+       JMP UPDATE          / TODO rotate piece
+/
+/ Move right
+/
+LKEY,
+       ISZ CXPOS
+       JMP UPDATE
+UPDATE,
+       CLA CMA             / -1
+       TAD CSHAPE          / address to current shape -1
+       JMS LEGALM          / Check if move is legal
+       JMP ILLEGAL         / Will be skipped if move i legal
+
+       / Erase previous position
+       CLA
+       TAD [XPOS]
+       DCA TARGET
+       TAD PXPOS
+       CLL RAL / Multiply by two
+       TAD (TERMW%2-FLDW)
+       IAC       / Starting column is 1
+       JMS ITOA
+       CLA
+       TAD (YPOS)
+       DCA TARGET
+       TAD PYPOS
+       IAC       / Starting row is 1
+       JMS ITOA
+       CLA
+       TAD [MOVXY-1]
+       JMS PUTS
+       CLA CLL IAC        / 1 in AC
+       DCA DCLEAR         / Do clear
+       CLA CMA
+       TAD PSHAPE
+       JMS DRAWS
+
+       / Draw new position
+       CLA
+       TAD [XPOS]
+       DCA TARGET
+       TAD CXPOS
+       CLL RAL / Multiply by two
+       TAD (TERMW%2-FLDW)
+       IAC       / Starting column is 1
+       JMS ITOA
+       CLA
+       TAD (YPOS)
+       DCA TARGET
+       TAD CYPOS
+       IAC       / Starting row is 1
+       JMS ITOA
+       CLA
+       TAD [MOVXY-1]
+       JMS PUTS
+       DCA DCLEAR           / Do not clear, draw. AC is zero after PUTS
+       CLA CMA
+       TAD CSHAPE
+       JMS DRAWS
+       TAD CXPOS            / Update previous posistions after a move
+       DCA PXPOS
+       TAD CYPOS
+       DCA PYPOS
+       TAD CSHAPE           / Update previous shape
+       DCA PSHAPE
+       TAD SHPROT
+       DCA PSHROT
+       TAD SHPSIZ
+       DCA PSHSIZ
+       DCA DOWNMV         / Reset DOWNMV boolean
+       JMP INPUT
+
+PAGE
+
+ILLPOS, 0
+ILLEGAL,
+       CLA
+       TAD DOWNMV         / Was this a downwards move?
+       SNA CLA
+       JMP INPUT          / Nope, go to input
+
+       / First setup shape data iterator
+       CLA CMA
+       TAD CSHAPE
+       DCA AIX                   / Location of shape is in AC. Store in index register
+       TAD SHPSIZ                  / Get size
+       CIA                       / Invert for loop use
+       DCA LOOPJ                 / Store as outer loop index
+
+       JMS CALCPO         / Get position within field in AC
+       DCA ILLPOS
+
+ILLOOP,
+       TAD SHPSIZ
+       CIA
+       DCA LOOPI
+JLLOOP,
+       TAD I AIX
+       SZA
+       DCA I ILLPOS       / Put something in field
+       ISZ ILLPOS          / Increment field pointer
+       ISZ LOOPI
+       JMP JLLOOP
+
+       TAD SHPSIZ
+       CIA
+       TAD ILLPOS
+       TAD (FLDW)
+       DCA ILLPOS
+       ISZ LOOPJ
+       JMP ILLOOP
+       DCA CXPOS
+       DCA CYPOS
+       DCA PXPOS
+       DCA PYPOS
+       DCA DOWNMV         / Reset DOWNMV boolean
+       JMS INIT
+       NL0002             / Add two to SHPIDX (1 to get into 1..7 range, and 1 to increment)
+       TAD SHPIDX         / Get SHPIDX
+       AND (7)            / Wrap arround at 7
+       SZA                / If wrapped to 0
+       TAD (-1)           / Remove one, thus index is 0..6
+       DCA SHPIDX         / Save
+       TAD (SHPLST)         / Get SHPLST address
+       TAD SHPIDX         / Add index
+       DCA CSHAPE         / Temporary store in current shape pointer
+       TAD I CSHAPE       / Get pointer to shape descriptor
+       DCA CSHAPE         / Again use CSHAPE as temp
+       TAD I CSHAPE       / Get size
+       DCA SHPSIZ         / Store size val
+       ISZ CSHAPE         / Skip size
+       TAD CSHAPE         / Get pointer to shape rotation list
+       TAD SHPROT         / Get current rotation
+       DCA CSHAPE         / Again store temporarily in CSHAPE
+       TAD I CSHAPE       / Get pointer to actual shape
+       DCA CSHAPE         / Store as current shape pointer
+       JMP INPUT
 
 /
 / Figure out what to do
@@ -39,17 +264,24 @@
 INIT,  0
        TAD (ERASE-1)   / Load erase escape sequence
        JMS PUTS        / Output to terminal
-       TAD ("0)        / TODO subroutine to change int to ascii digit
-       DCA XPOS
-       TAD ("0)
-       DCA XPOS+1
-       TAD ("0)
-       DCA YPOS
-       TAD ("0)
-       DCA YPOS+1
-       TAD (MOVXY-1)
+       DCA CXPOS       / Reset positions
+       DCA PXPOS
+       DCA CYPOS
+       DCA PYPOS
+       TAD [XPOS]
+       DCA TARGET
+       TAD (TERMW%2-FLDW-2)  / Starting XPOS is middle of terminal
+       IAC / start column is 1
+       JMS ITOA
+       CLA
+       TAD (YPOS)
+       DCA TARGET
+       IAC / start row is 1
+       JMS ITOA
+       CLA
+       TAD [MOVXY-1]
        JMS PUTS
-       JMS BLNKF       / Reset game field
+/       JMS BLNKF       / Reset game field
        JMS DRAWF       / Draw empty field
        JMP I INIT      / Return
 
@@ -58,9 +290,6 @@ INIT,  0
 / Do one of:
 /
 
-/
-/ 1. Perform rotation
-/
 
 /
 / 2. Perform drop to bottom
@@ -74,9 +303,113 @@ INIT,  0
 / 4. Perform normal drop
 /
 
+PAGE
+
+/ Calculate FLDPOS, leave in AC
+
+CALCPO,0
+       TAD CYPOS                 / Get current Y position
+       CMA                       / Invert for loop
+       DCA LOOPI                 / Put in location loop
+       TAD (FIELD)               / Get field pointer
+       JMP .+2                   / Skip first add
+ILOOP, TAD (FLDW)                / Add field width to get to next row
+       ISZ LOOPI                 / Loop check
+       JMP ILOOP
+       TAD CXPOS                 / Add X offset
+       JMP I CALCPO
+
+FIELDX,0
+FIELDY,0
+FLDPOS,0
+
 /
 / Check possibility
 /
+/ See if the current posistion/rotation is possible, otherwise restore
+/ previous state. First argument is shape.
+/
+
+LEGALM,0
+       / First setup shape data iterator
+       DCA AIX                   / Location of shape is in AC. Store in index register
+       TAD SHPSIZ                / Get size
+       CIA                       / Invert for loop use
+       DCA LOOPJ                 / Store as outer loop index
+
+       / Then setup Field Position
+       JMS CALCPO
+       DCA FLDPOS                / Store position in field
+
+       / Then stor initial X and Y pos for later checks
+       TAD CXPOS
+       DCA FIELDX
+       TAD CYPOS
+       DCA FIELDY
+
+       / Now loop over rows in shape
+LBROWS,
+       CLA
+       TAD SHPSIZ                / Get size again
+       CIA                       / Invert for loop use
+       DCA LOOPI                 / Stor as inner loop index
+       / Inner loop over columns in shape
+LBCOLS,
+       TAD I AIX                 / Walk through shape data
+       SNA CLA                   / If zero, continue to next pos
+       JMP LDCONT
+       / Else check field pos for collision
+       / 1. check if x underflow or overflow
+       TAD FIELDX                / Get X
+       SPA CLA                   / Check if negative
+       JMP PRVPOS
+       TAD (-FLDW)               / Get negative width
+       TAD FIELDX                / Add X
+       SMA CLA                   / Check if FIELDX to big
+       JMP PRVPOS
+       / 2. check y overflow
+       TAD (-FLDH)               / Get negative width
+       TAD FIELDY                / Add Y
+       SMA CLA                   / Check if FIELDY to big
+       JMP PRVPOS
+       / 3. check content
+       TAD I FLDPOS              / Get content
+       SZA CLA                   / Check if it contains block
+       JMP PRVPOS
+LDCONT,
+       ISZ FLDPOS
+       ISZ FIELDX                / Increment field X posistion (can be negative)
+       NOP
+       ISZ LOOPI                 / Increment inner loop, one block processed
+       JMP LBCOLS                / Go to next column
+       / Inner loop done
+       CLA
+       TAD CXPOS                 / Get starting X position
+       DCA FIELDX
+       TAD SHPSIZ                / Get width
+       CIA                       / Subtract from field position
+       TAD FLDPOS                / Get current field position
+       TAD (FLDW)                / Move field position to next row
+       DCA FLDPOS
+       ISZ FIELDY                / Update Y position
+       ISZ LOOPJ                 / Increment outer loop, one row done
+       JMP LBROWS                / Go to next row
+       ISZ LEGALM                / legal move, increment return address
+       JMP I LEGALM              / All rows done, return to caller.
+
+PRVPOS,CLA
+       TAD PXPOS
+       DCA CXPOS
+       TAD PYPOS
+       DCA CYPOS
+       TAD PSHAPE
+       DCA CSHAPE
+       TAD PSHROT
+       DCA SHPROT
+       TAD PSHSIZ
+       DCA SHPSIZ
+       TAD
+       JMP I LEGALM
 
 /
 / Wallkick translation
@@ -120,9 +453,11 @@ INIT,  0
 PAGE
 DRAWF, 0
        CLA
-       TAD (FIELD-01+FLDW+FLDW   / Skip two invisible top lines
+/       TAD (FIELD-01+FLDW+FLDW   / Skip two invisible top lines
+       TAD (FIELD-01
        DCA AIX
-       TAD (FLDH-02              / Loop over visible rows
+/       TAD (FLDH-02              / Loop over visible rows
+       TAD (FLDH
        CIA
        DCA LOOPI
 ROWS,
@@ -135,7 +470,7 @@ ROWS,
        JMS PUTC
 COLS,
        TAD I AIX                 / Get cell
-       SNA                       / Nonzero means a block
+       SNA CLA                   / Nonzero means a block
        JMP ISBLNK
 ISBLCK,
        TAD ("[
@@ -157,6 +492,10 @@ ENDCELL,
        JMS PUTC
        TAD (MOVD-1               / And move cursor down and back
        JMS PUTS
+       TAD ("2                   / Move back 24. TODO do this once
+       DCA BACK
+       TAD ("4
+       DCA BACK+1
        TAD (MOVB-1
        JMS PUTS
        ISZ LOOPI                 / Loop over number of rows
@@ -166,83 +505,194 @@ ENDCELL,
 /
 / Draw shape, AC contains location
 /
-SSIZ,  0
+DCLEAR,0                         / Should we clear
 DRAWS, 0
-       DCA AIX
-       TAD I AIX
-       DCA SSIZ
-       TAD SSIZ
-       CIA
-       DCA LOOPJ
+       DCA AIX                   / Location of shape is in AC. Store in index register
+       TAD SHPSIZ                / Get size
+       CIA                       / Invert for loop use
+       DCA LOOPJ                 / Store as outer loop index
 BROWS,
        CLA
-       TAD SSIZ
-       CIA
-       DCA LOOPI
+       TAD SHPSIZ                / Get size again
+       CIA                       / Invert for loop use
+       DCA LOOPI                 / Stor as inner loop index
 BCOLS,
-       TAD I AIX
-       SZA
-       JMP DBLCK
+       TAD I AIX                 / Walk through shape data
+       SZA CLA                   / If zero, draw blank
+       JMP DBLCK                 / Else draw block
 DBLNK,
-       TAD (MOVF-1
+       TAD (MOVF-1               / Move cursor to "draw" transparent block
        JMS PUTS
        TAD (MOVF-1
        JMS PUTS
-       JMP DCONT
+       JMP DCONT                 / Continue loop
 DBLCK,
-       CLA
-       TAD ("[
+       TAD DCLEAR                / Get clear bool
+       SZA CLA                   / if non-zero
+       JMP DCBLCK                / We should clear block
+       TAD ("[                   / Draw block by outputing [] pair
        JMS PUTC
        TAD ("]
        JMS PUTC
+       JMP DCONT
+DCBLCK,
+       TAD (".)                  / Clear block by outputing two dots
+       JMS PUTC
+       TAD (".)
+       JMS PUTC
 DCONT,
-       ISZ LOOPI
-       JMP BCOLS
-       TAD ("0       / Move back 3
+       ISZ LOOPI                 / Increment inner loop, one block processed
+       JMP BCOLS                 / Go to next column
+       TAD ("0                   / Move back twize the size of shape
        DCA BACK
        TAD ("0
-       TAD SSIZ
-       TAD SSIZ
+       TAD SHPSIZ
+       TAD SHPSIZ
        DCA BACK+1
        TAD (MOVB-1
        JMS PUTS
        TAD (MOVD-1
-       JMS PUTS      / Move down
-       ISZ LOOPJ
-       JMP BROWS
-       JMP I DRAWS
+       JMS PUTS                 / Move down
+       ISZ LOOPJ                / Increment outer loop, one row done
+       JMP BROWS                / Go to next row
+       JMP I DRAWS              / All rows done, return to caller.
 
 PAGE
+/ TODO save space by storing shape data as bit fields
+SHAPEL,3;SHAL0;SHAL1;SHAL2;SHAL3
 
-SHAPEL,3;0;0;1
+SHAL0,   0;0;1
          1;1;1
          0;0;0
 
-SHAPEJ,3;1;0;0
+SHAL1,   0;1;0
+         0;1;0
+         0;1;1
+
+SHAL2,   0;0;0
+         1;1;1
+         1;0;0
+
+SHAL3,   1;1;0
+         0;1;0
+         0;1;0
+
+SHAPEJ,3;SHAJ0;SHAJ1;SHAJ2;SHAJ3
+
+SHAJ0,   1;0;0
          1;1;1
          0;0;0
 
-SHAPES,3;0;1;1
+SHAJ1,   0;1;1
+         0;1;0
+         0;1;0
+
+SHAJ2,   0;0;0
+         1;1;1
+         0;0;1
+
+SHAJ3,   0;1;0
+         0;1;0
+         1;1;0
+
+
+SHAPES,3;SHAS0;SHAS1;SHAS2;SHAS3
+
+SHAS0,   0;1;1
          1;1;0
          0;0;0
 
-SHAPEZ,3;1;1;0
+SHAS1,   0;1;0
+         0;1;1
+         0;0;1
+
+SHAS2,   0;0;0
+         0;1;1
+         1;1;0
+
+SHAS3,   1;0;0
+         1;1;0
+         0;1;0
+
+SHAPEZ,3;SHAZ0;SHAZ1;SHAZ2;SHAZ3
+
+SHAZ0,   1;1;0
          0;1;1
          0;0;0
 
-SHAPET,3;0;1;0
+SHAZ1,   0;0;1
+         0;1;1
+         0;1;0
+
+SHAZ2,   0;0;0
+         1;1;0
+         0;1;1
+
+SHAZ3,   0;1;0
+         1;1;0
+         1;0;0
+
+SHAPET,3;SHAT0;SHAT1;SHAT2;SHAT3
+
+SHAT0,   0;1;0
          1;1;1
          0;0;0
 
-SHAPEO,4;0;1;1;0
+SHAT1,   0;1;0
+         0;1;1
+         0;1;0
+
+SHAT2,   0;0;0
+         1;1;1
+         0;1;0
+
+SHAT3,   0;1;0
+         1;1;0
+         0;1;0
+
+SHAPEO,4;SHAO0;SHAO1;SHAO2;SHAO3
+
+SHAO0,   0;1;1;0
          0;1;1;0
          0;0;0;0
          0;0;0;0
 
-SHAPEI,4;0;0;0;0
+SHAO1,   0;1;1;0
+         0;1;1;0
+         0;0;0;0
+         0;0;0;0
+
+SHAO2,   0;1;1;0
+         0;1;1;0
+         0;0;0;0
+         0;0;0;0
+
+SHAO3,   0;1;1;0
+         0;1;1;0
+         0;0;0;0
+         0;0;0;0
+
+SHAPEI,4;SHAI0;SHAI1;SHAI2;SHAI3
+
+SHAI0,   0;0;0;0
          1;1;1;1
          0;0;0;0
          0;0;0;0
+
+SHAI1,   0;0;1;0
+         0;0;1;0
+         0;0;1;0
+         0;0;1;0
+
+SHAI2,   0;0;0;0
+         0;0;0;0
+         1;1;1;1
+         0;0;0;0
+
+SHAI3,   0;1;0;0
+         0;1;0;0
+         0;1;0;0
+         0;1;0;0
 /
 / Blank field
 /
@@ -250,7 +700,7 @@ SHAPEI,4;0;0;0;0
 BLNKF, 0
        CLA
        TAD (FLDS                 / Get field size
-       CIA
+       CIA / TODO negate the above and bum CIA
        DCA LOOPI
        TAD (FIELD-1              / Get field location
        DCA AIX
@@ -288,25 +738,25 @@ PAGE
 /
 / Output null terminated mixed case packed string. AC is string loc-1
 /
-PTMP,   0
+/ TODO allow escaping to Upper/Lower case only
 PUTPS,  0
         DCA AIY
 PSLOOP,
         TAD I AIY             / Load first word
-        DCA TMP               / Stash word
-        TAD TMP
+        DCA TEMP               / Stash word
+        TAD TEMP
         BSW                   / Move first half down
         AND (077)
         JMS PUTB              / Unpack one byte
-        TAD TMP               / Get next byte
+        TAD TEMP               / Get next byte
         AND (077)
         JMS PUTB
         JMP PSLOOP
 PUTB,   0
         SNA
         JMP I PUTPS           / Null byte, return
-        DCA PTMP              / Stash byte
-        TAD PTMP
+        DCA TEMP2              / Stash byte
+        TAD TEMP2
         AND (037)             / Check if space char (five zero bits)
         SZA
         JMP NOSPC
@@ -314,11 +764,11 @@ PUTB,   0
         JMP ISSPC             / TODO check for actual space, now we miss @
 NOSPC,
         CLA
-        /TAD PTMP / For uppercase version
+        /TAD TEMP2 / For uppercase version
         /AND (40)
         /SNA CLA
         TAD (100)             / Not space? set char bit
-        TAD PTMP
+        TAD TEMP2
 ISSPC,
         JMS PUTC              / Output
         JMP I PUTB
@@ -359,8 +809,8 @@ DOWN,  "1
 /
 MOVF, ESC
       BRA
-FORW, "2
-      "4
+FORW, "0
+      "1
       "C
       0
 
@@ -423,7 +873,6 @@ LOOP1,  TAD (-1)
 / Global variables
 /
 
-TMP,   0
 LOOPI, 0
 LOOPJ, 0
 
@@ -431,7 +880,7 @@ LOOPJ, 0
 / Reserve space for game field
 /
        PAGE
-FIELD, 0
-       *FIELD+FLDS
+FIELD, ZBLOCK FLDS
+/       *FIELD+FLDS
 FIELDEND, HLT
 $
