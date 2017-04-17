@@ -233,10 +233,6 @@ JLLOOP,
        JMP I FIXSHP
 
 /
-/ Figure out what to do
-/
-
-/
 / Init
 /
 
@@ -268,10 +264,6 @@ INIT,  0
 
 /
 / 2. Perform drop to bottom
-/
-
-/
-/ 3. Perform sideways move
 /
 
 /
@@ -809,9 +801,6 @@ ERASE,  ESC
         "2
         "J
         0
-/
-/ Draw next block
-/
 
 PAGE
 
