@@ -172,14 +172,9 @@ UPDATE,
 PAGE
 
 ILLPOS, 0
-ILLEGAL,
-       CLA
-       TAD DOWNMV         / Was this a downwards move?
-       SNA CLA
-       JMP INPUT          / Nope, go to input
-
+FIXSHP,0
        / First setup shape data iterator
-       CLA CMA
+       NL7777
        TAD CSHAPE
        DCA AIX                   / Location of shape is in AC. Store in index register
        TAD SHPSIZ                  / Get size
@@ -208,6 +203,8 @@ JLLOOP,
        DCA ILLPOS
        ISZ LOOPJ
        JMP ILLOOP
+
+/ TODO looping done, the code below spawns new shape
        DCA CXPOS
        DCA CYPOS
        DCA PXPOS
@@ -233,7 +230,7 @@ JLLOOP,
        DCA CSHAPE         / Again store temporarily in CSHAPE
        TAD I CSHAPE       / Get pointer to actual shape
        DCA CSHAPE         / Store as current shape pointer
-       JMP I ILLEGAL
+       JMP I FIXSHP
 
 /
 / Figure out what to do
@@ -324,7 +321,6 @@ LEGALM,0
        DCA FIELDY
 
 LSHROW,                       / Loop over rows in shape
-       CLA / TODO safe to remove
        TAD SHPSIZ             / Get size again
        CIA                    / Invert for loop use
        DCA LOOPI              / Stor as inner loop index
@@ -361,10 +357,8 @@ LDCONT,                       / If we get here, there was no collision
        ISZ LOOPI              / Increment inner loop, one block processed
        JMP LSHCOL             / Go to next column
 
-       CLA / TODO safe to remove
-                              / Inner loop done
-       TAD CXPOS              / Get starting X position
-       DCA FIELDX
+       TAD CXPOS              / Inner loop done
+       DCA FIELDX             / Store starting X position
        TAD SHPSIZ             / Get width
        CIA                    / Subtract from field position
        TAD FLDPOS             / Get current field position
@@ -387,7 +381,9 @@ PRVPOS,                       / Restore position, rotation, shape and size
        DCA SHPROT
        TAD PSHSIZ
        DCA SHPSIZ
-       JMS ILLEGAL
+       TAD DOWNMV             / Was this a downwards move?
+       SZA CLA
+       JMS FIXSHP             / Yes, make shape permanent in field
        JMP I LEGALM
 
 /
