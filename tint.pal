@@ -144,11 +144,9 @@ UPDATE,
        CLA
        TAD [MOVXY-1]
        JMS PUTS
-       CLA CLL IAC        / 1 in AC
-       DCA DCLEAR         / Do clear
-       CLA CMA
        TAD PSHAPE
        JMS DRAWS
+       1                  / Argument for DRAWS, clear shape
 
        / Draw new position
        CLA
@@ -166,10 +164,9 @@ UPDATE,
        CLA
        TAD [MOVXY-1]
        JMS PUTS
-       DCA DCLEAR           / Do not clear, draw. AC is zero after PUTS
-       CLA CMA
        TAD CSHAPE
        JMS DRAWS
+       0                    / Argument for DRAWS. Do not clear, draw.
        TAD CXPOS            / Update previous posistions after a move
        DCA PXPOS
        TAD CYPOS
@@ -499,8 +496,8 @@ ENDCELL,
 /
 / Draw shape, AC contains location
 /
-DCLEAR,0                         / Should we clear
 DRAWS, 0
+       TAD (-1)
        DCA AIX                   / Location of shape is in AC. Store in index register
        TAD SHPSIZ                / Get size
        CIA                       / Invert for loop use
@@ -521,7 +518,7 @@ DBLNK,
        JMS PUTS
        JMP DCONT                 / Continue loop
 DBLCK,
-       TAD DCLEAR                / Get clear bool
+       TAD I DRAWS               / First argument, should we clear?
        SZA CLA                   / if non-zero
        JMP DCBLCK                / We should clear block
        TAD ("[                   / Draw block by outputing [] pair
@@ -549,6 +546,8 @@ DCONT,
        JMS PUTS                 / Move down
        ISZ LOOPJ                / Increment outer loop, one row done
        JMP BROWS                / Go to next row
+       ISZ DRAWS                / Skip over argumnet
+       NOP
        JMP I DRAWS              / All rows done, return to caller.
 
 PAGE
