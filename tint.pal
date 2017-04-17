@@ -21,6 +21,7 @@
       FLDS=012^026  /Total size
       TERMW=0120    /Terminal width
       NL0002=CLA CLL CML RTL / Microcoded "2"
+      NL7777=CLA CMA         / Microcoded "7777" or "-1"
 
 /
 / Page zero global variables
@@ -47,6 +48,9 @@ SHPLST,SHAPEL     / List of pointers to shapes
        SHAPEI
 TEMP,  0          / Temporaries used here and there
 TEMP2, 0
+LOOPI, 0          / Loop variables used here and there
+LOOPJ, 0
+
 
 /
 / Main loop.
@@ -54,94 +58,81 @@ TEMP2, 0
        *200
        JMS INIT
        KCC
-INPUT, KSF            / Input loop
-       JMP INPUT
-       KRB
-       DCA TEMP
+INPUT, KSF                    / Test keyboard flag
+       JMP INPUT              / Input loop
+       KRB                    / Read keystroke
+       DCA TEMP               / Store key for later comparison
        TAD TEMP
-       TAD (-"h+0200)      / Compare to h
-       SNA CLA
-       JMP HKEY
-       TAD TEMP
-       TAD (-"j+0200)      / Compare to j
+       TAD (-"h+0200)         / Compare to h
+       SNA CLA                / If zero, we got an 'h'
+       JMP HKEY               / Go to handling of 'h'
+       TAD TEMP               / If not, get keystroke again
+       TAD (-"j+0200)         / Compare to j
        SNA CLA
        JMP JKEY
        TAD TEMP
-       TAD (-"k+0200)      / Compare to k
+       TAD (-"k+0200)         / Compare to k
        SNA CLA
        JMP KKEY
        TAD TEMP
-       TAD (-"l+0200)      / Compare to l
+       TAD (-"l+0200)         / Compare to l
        SNA CLA
        JMP LKEY
-       JMP INPUT
+       JMP INPUT              / Unused key, return to input loop
 /
 / Move left
 /
 HKEY,
-       TAD CXPOS
-       CIA
-       CMA
-       DCA CXPOS
-       JMP UPDATE
+       NL7777                 / Load -1
+       TAD CXPOS              / Add current x position (move left)
+       DCA CXPOS              / Store it
+       JMP UPDATE             / Update screen
 /
 / Move down
 /
 JKEY,
-       ISZ CYPOS
-       ISZ DOWNMV
-       JMP UPDATE
+       ISZ CYPOS              / Increment current Y position
+       ISZ DOWNMV             / Set downward move flag
+       JMP UPDATE             / Update screen
 /
 / Rotate clockwise
 /
 KKEY,
-       TAD CSHAPE          / Current shape
-       DCA PSHAPE          / Store as previous
-       TAD SHPSIZ          / Current size
-       DCA PSHSIZ          / Store as previous
-       TAD SHPROT          / Get current rotation
-       DCA PSHROT          / Save as previous
-
-       TAD SHPROT          / Get again
-       IAC                 / Increment
-       AND (3)             / Wrap arround so SHPROT is 0..3
-       DCA SHPROT          / Store
-       TAD (SHPLST)        / Get list of shapes
-       TAD SHPIDX          / Add current shape index
-       DCA CSHAPE          / Store pointer (use CSHAPE as temp store)
-       TAD I CSHAPE        / Dereference to get shape descriptor pointer
-       IAC                 / Skip size
-       TAD SHPROT          / Jump to current rotation
-       DCA CSHAPE          / Store pointer (again CSHAPE as temp store)
-       TAD I CSHAPE        / Get current shapes current rotation
-       DCA CSHAPE          / Store as current shape
-       JMP UPDATE          / TODO rotate piece
+       TAD SHPROT             / Get current rotation
+       IAC                    / Increment
+       AND (3)                / Wrap arround so SHPROT is 0..3
+       DCA SHPROT             / Store
+       TAD (SHPLST)           / Get address to list of shapes
+       TAD SHPIDX             / Add current shape index
+       DCA CSHAPE             / Store pointer (use CSHAPE as temp store)
+       TAD I CSHAPE           / Dereference to get shape descriptor pointer
+       IAC                    / Skip size
+       TAD SHPROT             / Jump to current rotation in descriptor array
+       DCA CSHAPE             / Store pointer (again CSHAPE as temp store)
+       TAD I CSHAPE           / Get current shapes current rotation
+       DCA CSHAPE             / Store as current shape
+       JMP UPDATE             / Update screen
 /
 / Move right
 /
 LKEY,
-       ISZ CXPOS
-       JMP UPDATE
+       ISZ CXPOS              / Increment X position (move right)
+       JMP UPDATE             / Update screen
 UPDATE,
-       CLA CMA             / -1
-       TAD CSHAPE          / address to current shape -1
-       JMS LEGALM          / Check if move is legal
-       JMP ILLEGAL         / Will be skipped if move i legal
+       JMS LEGALM             / Check if current position is legal
+       JMP INPUT              / Will be skipped if move is legal
 
        / Erase previous position
-       CLA
        TAD PXPOS
        CLL RAL / Multiply by two
        TAD (TERMW%2-FLDW)
        IAC       / Starting column is 1
        JMS ITOA
        XPOS                   / Target address, argument for ITOA
-       CLA
        TAD PYPOS
        IAC       / Starting row is 1
        JMS ITOA
        YPOS                   / Target address, argument for ITOA
-       CLA
        TAD [MOVXY-1]
        JMS PUTS
        TAD PSHAPE
@@ -156,12 +147,10 @@ UPDATE,
        IAC       / Starting column is 1
        JMS ITOA
        XPOS                   / Target address, argument for ITOA
-       CLA
        TAD CYPOS
        IAC       / Starting row is 1
        JMS ITOA
        YPOS                   / Target address, argument for ITOA
-       CLA
        TAD [MOVXY-1]
        JMS PUTS
        TAD CSHAPE
@@ -244,7 +233,7 @@ JLLOOP,
        DCA CSHAPE         / Again store temporarily in CSHAPE
        TAD I CSHAPE       / Get pointer to actual shape
        DCA CSHAPE         / Store as current shape pointer
-       JMP INPUT
+       JMP I ILLEGAL
 
 /
 / Figure out what to do
@@ -258,18 +247,16 @@ INIT,  0
        TAD (ERASE-1)   / Load erase escape sequence
        JMS PUTS        / Output to terminal
        DCA CXPOS       / Reset positions
-       DCA PXPOS
+       DCA PXPOS / TODO reset all zero page variables
        DCA CYPOS
        DCA PYPOS
        TAD (TERMW%2-FLDW-2)  / Starting XPOS is middle of terminal
        IAC / start column is 1
        JMS ITOA
        XPOS                   / Target address, argument for ITOA
-       CLA
-       IAC / start row is 1
+       CLA IAC                / start row is 1
        JMS ITOA
        YPOS                   / Target address, argument for ITOA
-       CLA
        TAD [MOVXY-1]
        JMS PUTS
 /       JMS BLNKF       / Reset game field
@@ -310,10 +297,6 @@ ILOOP, TAD (FLDW)                / Add field width to get to next row
        TAD CXPOS                 / Add X offset
        JMP I CALCPO
 
-FIELDX,0
-FIELDY,0
-FLDPOS,0
-
 /
 / Check possibility
 /
@@ -321,74 +304,79 @@ FLDPOS,0
 / previous state. First argument is shape.
 /
 
+FIELDX,0
+FIELDY,0
+FLDPOS,0
 LEGALM,0
-       / First setup shape data iterator
-       DCA AIX                   / Location of shape is in AC. Store in index register
-       TAD SHPSIZ                / Get size
-       CIA                       / Invert for loop use
-       DCA LOOPJ                 / Store as outer loop index
+       NL7777                 / First setup shape data iterator
+       TAD CSHAPE
+       DCA AIX                / AIX is first index register
+       TAD SHPSIZ             / Get size
+       CIA                    / Invert for loop use
+       DCA LOOPJ              / Store as outer loop index
 
-       / Then setup Field Position
-       JMS CALCPO
-       DCA FLDPOS                / Store position in field
+       JMS CALCPO             / Calculate position in field
+       DCA FLDPOS             / Store it
 
-       / Then stor initial X and Y pos for later checks
-       TAD CXPOS
+       TAD CXPOS              / Get X and Y posistion for later checks
        DCA FIELDX
        TAD CYPOS
        DCA FIELDY
 
-       / Now loop over rows in shape
-LBROWS,
-       CLA
-       TAD SHPSIZ                / Get size again
-       CIA                       / Invert for loop use
-       DCA LOOPI                 / Stor as inner loop index
-       / Inner loop over columns in shape
-LBCOLS,
-       TAD I AIX                 / Walk through shape data
-       SNA CLA                   / If zero, continue to next pos
-       JMP LDCONT
-       / Else check field pos for collision
-       / 1. check if x underflow or overflow
-       TAD FIELDX                / Get X
-       SPA CLA                   / Check if negative
-       JMP PRVPOS
-       TAD (-FLDW)               / Get negative width
-       TAD FIELDX                / Add X
-       SMA CLA                   / Check if FIELDX to big
-       JMP PRVPOS
-       / 2. check y overflow
-       TAD (-FLDH)               / Get negative width
-       TAD FIELDY                / Add Y
-       SMA CLA                   / Check if FIELDY to big
-       JMP PRVPOS
-       / 3. check content
-       TAD I FLDPOS              / Get content
-       SZA CLA                   / Check if it contains block
-       JMP PRVPOS
-LDCONT,
-       ISZ FLDPOS
-       ISZ FIELDX                / Increment field X posistion (can be negative)
-       NOP
-       ISZ LOOPI                 / Increment inner loop, one block processed
-       JMP LBCOLS                / Go to next column
-       / Inner loop done
-       CLA
-       TAD CXPOS                 / Get starting X position
-       DCA FIELDX
-       TAD SHPSIZ                / Get width
-       CIA                       / Subtract from field position
-       TAD FLDPOS                / Get current field position
-       TAD (FLDW)                / Move field position to next row
-       DCA FLDPOS
-       ISZ FIELDY                / Update Y position
-       ISZ LOOPJ                 / Increment outer loop, one row done
-       JMP LBROWS                / Go to next row
-       ISZ LEGALM                / legal move, increment return address
-       JMP I LEGALM              / All rows done, return to caller.
+LSHROW,                       / Loop over rows in shape
+       CLA / TODO safe to remove
+       TAD SHPSIZ             / Get size again
+       CIA                    / Invert for loop use
+       DCA LOOPI              / Stor as inner loop index
 
-PRVPOS,CLA
+LSHCOL,                       / Inner loop over columns in shape
+       TAD I AIX              / Get shape data
+       SNA CLA                / If zero, continue to next pos
+       JMP LDCONT
+                              / Else check field for collision
+                              / 1st. check if X is out of bounds
+       TAD FIELDX             / Get X
+       SPA CLA                / Check if negative
+       JMP PRVPOS             / Yes, return
+       TAD (-FLDW)            / Get negative width
+       TAD FIELDX             / Add X
+       SMA CLA                / Check if positive (FIELDX to big)
+       JMP PRVPOS             / Yes, return
+
+                              / 2nd. check y overflow
+       TAD (-FLDH)            / Get negative width
+       TAD FIELDY             / Add Y
+       SMA CLA                / Check if positive (FIELDY to big)
+       JMP PRVPOS             / Yes, return
+
+                              / 3. check content
+       TAD I FLDPOS           / Get content
+       SZA CLA                / Check if it contains block
+       JMP PRVPOS             / Yes, return
+
+LDCONT,                       / If we get here, there was no collision
+       ISZ FLDPOS             / Move one step in the game field
+       ISZ FIELDX             / Increment field X posistion (can be negative)
+       NOP
+       ISZ LOOPI              / Increment inner loop, one block processed
+       JMP LSHCOL             / Go to next column
+
+       CLA / TODO safe to remove
+                              / Inner loop done
+       TAD CXPOS              / Get starting X position
+       DCA FIELDX
+       TAD SHPSIZ             / Get width
+       CIA                    / Subtract from field position
+       TAD FLDPOS             / Get current field position
+       TAD (FLDW)             / Move field position to next row
+       DCA FLDPOS
+       ISZ FIELDY             / Update Y position
+       ISZ LOOPJ              / Increment outer loop, one row done
+       JMP LSHROW             / Go to next row
+       ISZ LEGALM             / legal move, increment return address
+       JMP I LEGALM           / All rows done, return to caller.
+
+PRVPOS,                       / Restore position, rotation, shape and size
        TAD PXPOS
        DCA CXPOS
        TAD PYPOS
@@ -399,7 +387,7 @@ PRVPOS,CLA
        DCA SHPROT
        TAD PSHSIZ
        DCA SHPSIZ
-       TAD
+       JMS ILLEGAL
        JMP I LEGALM
 
 /
@@ -858,13 +846,6 @@ NXTDGT, ISZ TARGET            / Advance target pointer
         TAD ("0+12)           / Get ASCII 0 + 10 since subtracted 10 below 0
         DCA I TARGET          / Store as result in target
         JMP I ITOA            / Return
-
-/
-/ Global variables
-/
-
-LOOPI, 0
-LOOPJ, 0
 
 /
 / Reserve space for game field
