@@ -130,19 +130,17 @@ UPDATE,
 
        / Erase previous position
        CLA
-       TAD [XPOS]
-       DCA TARGET
        TAD PXPOS
        CLL RAL / Multiply by two
        TAD (TERMW%2-FLDW)
        IAC       / Starting column is 1
        JMS ITOA
+       XPOS                   / Target address, argument for ITOA
        CLA
-       TAD (YPOS)
-       DCA TARGET
        TAD PYPOS
        IAC       / Starting row is 1
        JMS ITOA
+       YPOS                   / Target address, argument for ITOA
        CLA
        TAD [MOVXY-1]
        JMS PUTS
@@ -154,19 +152,17 @@ UPDATE,
 
        / Draw new position
        CLA
-       TAD [XPOS]
-       DCA TARGET
        TAD CXPOS
        CLL RAL / Multiply by two
        TAD (TERMW%2-FLDW)
        IAC       / Starting column is 1
        JMS ITOA
+       XPOS                   / Target address, argument for ITOA
        CLA
-       TAD (YPOS)
-       DCA TARGET
        TAD CYPOS
        IAC       / Starting row is 1
        JMS ITOA
+       YPOS                   / Target address, argument for ITOA
        CLA
        TAD [MOVXY-1]
        JMS PUTS
@@ -268,16 +264,14 @@ INIT,  0
        DCA PXPOS
        DCA CYPOS
        DCA PYPOS
-       TAD [XPOS]
-       DCA TARGET
        TAD (TERMW%2-FLDW-2)  / Starting XPOS is middle of terminal
        IAC / start column is 1
        JMS ITOA
+       XPOS                   / Target address, argument for ITOA
        CLA
-       TAD (YPOS)
-       DCA TARGET
        IAC / start row is 1
        JMS ITOA
+       YPOS                   / Target address, argument for ITOA
        CLA
        TAD [MOVXY-1]
        JMS PUTS
@@ -840,34 +834,31 @@ PAGE
 
 /
 / ITOA - Convert integer between 0-99 to double digit ascii
-/        AC has value, TARGET has memory address.
+/        AC has value, ITOA+1 has target address.
 /
 
 VALUE,  0
 TARGET, 0
 ITOA,   0
-        DCA VALUE
-        TAD ("0)
-        DCA I TARGET
-        TAD VALUE
-LOOP10, TAD (-12)
-        SPA
-        JMP NXTDGT
-        ISZ I TARGET
+        DCA VALUE             / Store value to be converterd
+        TAD I ITOA            / Get the first argument
+        DCA TARGET            / Store it
+        ISZ ITOA              / Advance return address
+        NOP
+        TAD ("0)              / Get ASCII value of 0
+        DCA I TARGET          / Store as initial value in target
+        TAD VALUE             / Get value
+LOOP10, TAD (-12)             / Remove decimal 10
+        SPA                   / While value is still positive
+        JMP NXTDGT            / Then go to calculating next digit
+        ISZ I TARGET          / Increment ASCII value
         JMP LOOP10
 
-NXTDGT, ISZ TARGET
+NXTDGT, ISZ TARGET            / Advance target pointer
         NOP
-        TAD (12)
-        DCA VALUE
-        TAD ("0)
-        DCA I TARGET
-        TAD VALUE
-LOOP1,  TAD (-1)
-        SPA
-        JMP I ITOA     / Return
-        ISZ I TARGET
-        JMP LOOP1
+        TAD ("0+12)           / Get ASCII 0 + 10 since subtracted 10 below 0
+        DCA I TARGET          / Store as result in target
+        JMP I ITOA            / Return
 
 /
 / Global variables
