@@ -78,6 +78,10 @@ INPUT, KSF                    / Test keyboard flag
        TAD (-"l+0200)         / Compare to l
        SNA CLA
        JMP LKEY
+       TAD TEMP
+       TAD (-"r+0200)         / Compare to r
+       SNA CLA
+       JMP RKEY
        JMP INPUT              / Unused key, return to input loop
 /
 / Move left
@@ -118,6 +122,16 @@ KKEY,
 LKEY,
        ISZ CXPOS              / Increment X position (move right)
        JMP UPDATE             / Update screen
+/
+/ Reset
+/
+RKEY,
+       JMS INIT
+       JMP INPUT
+
+/
+/ Update playing field and display
+/
 UPDATE,
        JMS IFILLM             / Check if current position is illegal
        JMP INPUT              / Then get next action
