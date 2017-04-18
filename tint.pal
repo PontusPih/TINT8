@@ -27,28 +27,43 @@
 / Page zero global variables
 /
        *20
-DOWNMV, 0         / non-zero if last movement was down
-PXPOS, 0          / Previous X,Y Position
-PYPOS, 0
-CXPOS, 0          / Current X,Y Position
+
+/
+/ Shape structures. The current shape and previous shape structure must
+/ be of equal size and the variables must be in the same order as the
+/ current shape data is copied to the previous shape data when a new
+/ block is spawned.
+/
+
+CSHAPE,SHAL0                  / Current shape, init to first rotation of L
+CXPOS, 0                      / Current X,Y Position
 CYPOS, 0
-PSHAPE,SHAL0      / Previous shape
-PSHSIZ,3          / Previous shape size
-PSHROT,0          / Previous rotation
-CSHAPE,SHAL0      / Current shape, init to first rotation of L
-SHPSIZ,3          / Length of shape square.
-SHPROT,0          / Current rotation index
-SHPIDX,0          / Current index into SHPLST
-SHPLST,SHAPEL     / List of pointers to shapes
+SHPROT,0                      / Current rotation index
+SHPSIZ,3                      / Length of shape square.
+
+PSHAPE,SHAL0                  / Previous shape
+PXPOS, 0                      / Previous X,Y Position
+PYPOS, 0
+PSHROT,0                      / Previous rotation
+PSHSIZ,3                      / Previous shape size
+
+/
+/ Down movement boolean, must be first variable after shape structures,
+/ it's used to determine their combined size.
+/
+DOWNMV,0                      / non-zero if last movement was down
+
+SHPIDX,0                      / Current index into SHPLST
+SHPLST,SHAPEL                 / List of pointers to shapes
        SHAPEJ
        SHAPES
        SHAPEZ
        SHAPET
        SHAPEO
        SHAPEI
-TEMP,  0          / Temporaries used here and there
+TEMP,  0                      / Temporaries used here and there
 TEMP2, 0
-LOOPI, 0          / Loop variables used here and there
+LOOPI, 0                      / Loop variables used here and there
 LOOPJ, 0
 
 /
@@ -226,16 +241,11 @@ UPDATE,
        JMS DRAWS              / Draw it
        0                      / Argument for DRAWS. Do not clear, draw.
 
-       TAD CXPOS              / Update previous positions after a move
-       DCA PXPOS              / TODO implement MEMCPY
-       TAD CYPOS
-       DCA PYPOS
-       TAD CSHAPE             / Update previous shape
-       DCA PSHAPE
-       TAD SHPROT
-       DCA PSHROT
-       TAD SHPSIZ
-       DCA PSHSIZ
+       JMS MEMCPY             / Update previous positions after a move
+       CSHAPE                 / ARG for MEMCPY, copy from current shape
+       PSHAPE                 / ARG for MEMCPY, copy to previous shape
+       PSHAPE-CSHAPE          / ARG for MEMCPY, size of struct
+
        DCA DOWNMV             / Reset DOWNMV boolean
        JMP INPUT              / Get next action
 
@@ -279,12 +289,10 @@ JLLOOP,
 / Spawns new shape
 /
 SPNSHP,0
-       DCA CXPOS          / TODO implement MEMCLR (and MEMMOV)
-       DCA CYPOS
-       DCA PXPOS
-       DCA PYPOS
-       DCA DOWNMV         / Reset DOWNMV boolean
-       JMS INIT
+       JMS MEMSET             / Reset all current and previous values
+       CSHAPE                 / Arg for MEMSET, starting position
+       DOWNMV+1-CSHAPE        / size of all variables including DOWNMV
+       0                      / Value to set
        NL0002             / Add two to SHPIDX (1 to get into 1..7 range, and 1 to increment)
        TAD SHPIDX         / Get SHPIDX
        AND (7)            / Wrap arround at 7
@@ -311,24 +319,23 @@ SPNSHP,0
 /
 
 INIT,  0
-       TAD (ERASE-1)   / Load erase escape sequence
-       JMS PUTS        / Output to terminal
-       DCA CXPOS       / Reset positions
-       DCA PXPOS / TODO reset all zero page variables
-       DCA CYPOS
-       DCA PYPOS
-       TAD (TERMW%2-FLDW-2)  / Starting XPOS is middle of terminal
-       IAC / start column is 1
-       JMS ITOA
+       JMS MEMSET             / Reset game field
+       FIELDP                 / Arg for MEMSET, pointer to field
+       FLDS                   / Arg for MEMSET, field size
+       0                      / Arg for MEMSET, value to set
+       TAD (ERASE-1)          / Load erase escape sequence
+       JMS PUTS               / Output to terminal
+       TAD (TERMW%2-FLDW-2+1) / Starting XPOS is middle of terminal (Start column is 1)
+       JMS ITOA               / Get ASCII coordinate
        XPOS                   / Target address, argument for ITOA
-       CLA IAC                / start row is 1
-       JMS ITOA
+       CLA IAC                / Start row is 1
+       JMS ITOA               / Get ASCII Y coordinate
        YPOS                   / Target address, argument for ITOA
-       TAD [MOVXY-1]
+       TAD [MOVXY-1]          / Position cursors
        JMS PUTS
-/       JMS BLNKF       / Reset game field
-       JMS DRAWF       / Draw empty field
-       JMP I INIT      / Return
+       JMS DRAWF              / Draw empty field
+       JMS SPNSHP             / Spawn a new shape
+       JMP I INIT             / Return
 
 
 /
@@ -436,17 +443,12 @@ LDCONT,                       / If we get here, there was no collision
        ISZ IFILLM             / legal move, increment return address
        JMP I IFILLM           / All rows done, return to caller.
 
-PRVPOS,                       / Restore position, rotation, shape and size
-       TAD PXPOS
-       DCA CXPOS
-       TAD PYPOS
-       DCA CYPOS
-       TAD PSHAPE
-       DCA CSHAPE
-       TAD PSHROT
-       DCA SHPROT
-       TAD PSHSIZ
-       DCA SHPSIZ
+PRVPOS,
+       JMS MEMCPY             / Restore position, rotation, shape and size
+       PSHAPE                 / ARG for MEMCPY, copy from previous shape
+       CSHAPE                 / ARG for MEMCPY, copy to current shape
+       PSHAPE-CSHAPE          / ARG for MEMCPY, size of struct
+
        TAD DOWNMV             / Was this a downwards move?
        SNA CLA
        JMP .+3
@@ -738,22 +740,6 @@ SHAI3,   0;1;0;0
          0;1;0;0
          0;1;0;0
          0;1;0;0
-/
-/ Blank field
-/
-
-BLNKF, 0
-       CLA
-       TAD (FLDS                 / Get field size
-       CIA / TODO negate the above and bum CIA
-       DCA LOOPI
-       TAD (FIELD-1              / Get field location
-       DCA AIX
-BLOOP,
-       DCA I AIX                 / Put 0 in FIELD through AIX
-       ISZ LOOPI
-       JMP BLOOP
-       JMP I BLNKF               / Return
 
 /
 / Output one char, clear AC
