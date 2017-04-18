@@ -51,6 +51,66 @@ TEMP2, 0
 LOOPI, 0          / Loop variables used here and there
 LOOPJ, 0
 
+/
+/ Globally usefull routines
+/
+
+/
+/ MEMSET, set memory region to value.
+/
+/ ARG0 is pointer to region
+/ ARG1 is size
+/ ARG2 is value
+/
+/ Size must be >= 1
+/
+
+MEMSET,0
+       NL7777                 / Load -1
+       TAD I MEMSET           / Get address -1
+       DCA AIX                / Store in autoindex register
+       ISZ MEMSET             / Get next argument
+       TAD I MEMSET           / Which is size
+       CIA                    / Negate for loop
+       DCA LOOPI              / Put in loop variable
+       ISZ MEMSET             / Get next argument
+       TAD I MEMSET           / Which is value
+       ISZ MEMSET             / Setup return address
+MSLOOP,
+       DCA I AIX              / Store value through autoindex
+       ISZ LOOPI              / Is loop done?
+       JMP MSLOOP             / No, continue
+       JMP I MEMSET           / Yes, return
+
+/
+/ MEMCPY, copy one region of memory to another
+/
+/ ARG0 is source address
+/ ARG1 is target address
+/ ARG2 is size
+/
+/ Size must be >= 1
+/
+
+MEMCPY,0
+       NL7777                 / Load -1
+       TAD I MEMCPY           / Get source address -1
+       DCA AIX                / Store in autoindex register
+       ISZ MEMCPY             / Get next argument
+       NL7777                 / Load -1
+       TAD I MEMCPY           / Which is target address -1
+       DCA AIY                / Store in autoindex register
+       ISZ MEMCPY             / Get next argument
+       TAD I MEMCPY           / Which is size
+       CIA                    / Negate for loop use
+       DCA LOOPI              / Put in loop variable
+       ISZ MEMCPY             / Setup return address
+MCLOOP,
+       TAD I AIX              / Get value from source
+       DCA I AIY              / Store in target
+       ISZ LOOPI              / Is loop done?
+       JMP MCLOOP             / No, continue
+       JMP I MEMCPY           / Yes, return
 
 /
 / Main loop.
