@@ -128,6 +128,58 @@ MCLOOP,
        JMP I MEMCPY           / Yes, return
 
 /
+/ Output one char, clear AC
+/
+
+PUTC,  0
+       TLS                    / Initiate output of content in AC
+       TSF                    / Is tty flag set?
+       JMP .-1                / No, wait some more
+       CLA                    / Yes, Clean up AC
+       JMP I PUTC             / Return
+
+/
+/ Output null terminated string, one char per word. AC is loc-1
+/
+
+PUTS,   0
+        DCA AIY               / Set up autoindex register
+PLOOP,
+        TAD I AIY             / Get next char
+        SNA                   / Is it zero?
+        JMP I PUTS            / Yes, return
+        JMS PUTC              / No, output char
+        JMP PLOOP             / Do again
+
+/
+/ ITOA - Convert integer between 0-99 to double digit ASCII
+/        AC has value, ITOA+1 has target address.
+/
+
+VALUE,  0
+TARGET, 0
+ITOA,   0
+        DCA VALUE             / Store value to be converterd
+        TAD I ITOA            / Get the first argument
+        DCA TARGET            / Store it
+        ISZ ITOA              / Advance return address
+        NOP
+        TAD ("0)              / Get ASCII value of 0
+        DCA I TARGET          / Store as initial value in target
+        TAD VALUE             / Get value
+LOOP10, TAD (-12)             / Remove decimal 10
+        SPA                   / While value is still positive
+        JMP NXTDGT            / Then go to calculating next digit
+        ISZ I TARGET          / Increment ASCII value
+        JMP LOOP10
+
+NXTDGT, ISZ TARGET            / Advance target pointer
+        NOP
+        TAD ("0+12)           / Get ASCII 0 + 10 since subtracted 10 below 0
+        DCA I TARGET          / Store as result in target
+        JMP I ITOA            / Return
+
+/
 / Main loop.
 /
        *200
@@ -741,29 +793,6 @@ SHAI3,   0;1;0;0
          0;1;0;0
          0;1;0;0
 
-/
-/ Output one char, clear AC
-/
-
-PUTC,  0
-       TLS
-       TSF
-       JMP .-1
-       CLA
-       JMP I PUTC
-
-/
-/ Output null terminated string, one char per word. AC is loc-1
-/
-PUTS,   0
-        DCA AIY
-PLOOP,
-        TAD I AIY
-        SNA
-        JMP I PUTS
-        JMS PUTC
-        JMP PLOOP
-
 PAGE
 
 /
@@ -865,34 +894,6 @@ ERASE,  ESC
         0
 
 PAGE
-
-/
-/ ITOA - Convert integer between 0-99 to double digit ASCII
-/        AC has value, ITOA+1 has target address.
-/
-
-VALUE,  0
-TARGET, 0
-ITOA,   0
-        DCA VALUE             / Store value to be converterd
-        TAD I ITOA            / Get the first argument
-        DCA TARGET            / Store it
-        ISZ ITOA              / Advance return address
-        NOP
-        TAD ("0)              / Get ASCII value of 0
-        DCA I TARGET          / Store as initial value in target
-        TAD VALUE             / Get value
-LOOP10, TAD (-12)             / Remove decimal 10
-        SPA                   / While value is still positive
-        JMP NXTDGT            / Then go to calculating next digit
-        ISZ I TARGET          / Increment ASCII value
-        JMP LOOP10
-
-NXTDGT, ISZ TARGET            / Advance target pointer
-        NOP
-        TAD ("0+12)           / Get ASCII 0 + 10 since subtracted 10 below 0
-        DCA I TARGET          / Store as result in target
-        JMP I ITOA            / Return
 
 /
 / Reserve space for game field
