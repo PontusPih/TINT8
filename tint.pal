@@ -16,12 +16,12 @@
       AIY=011
 
 / Constants
-      FLDW=012      /Field height
-      FLDH=026      /Field width
-      FLDS=012^026  /Total size
-      TERMW=0120    /Terminal width
-      NL0002=CLA CLL CML RTL / Microcoded "2"
-      NL7777=CLA CMA         / Microcoded "7777" or "-1"
+      FLDW=012                / Field height
+      FLDH=026                / Field width
+      FLDS=012^026            / Total size
+      TERMW=0120              / Terminal width
+      NL0002=CLA CLL CML RTL  / Microcoded "2"
+      NL7777=CLA CMA          / Microcoded "7777" or "-1"
 
 /
 / Page zero global variables
@@ -38,8 +38,8 @@
 CSHAPE,SHAL0                  / Current shape, init to first rotation of L
 CXPOS, 0                      / Current X,Y Position
 CYPOS, 0
-SHPROT,0                      / Current rotation index
-SHPSIZ,3                      / Length of shape square.
+CSHROT,0                      / Current rotation index
+CSHSIZ,3                      / Length of shape square.
 
 PSHAPE,SHAL0                  / Previous shape
 PXPOS, 0                      / Previous X,Y Position
@@ -229,16 +229,16 @@ JKEY,
 / Rotate clockwise
 /
 KKEY,
-       TAD SHPROT             / Get current rotation
+       TAD CSHROT             / Get current rotation
        IAC                    / Increment
-       AND (3)                / Wrap arround so SHPROT is 0..3
-       DCA SHPROT             / Store
+       AND (3)                / Wrap arround so CSHROT is 0..3
+       DCA CSHROT             / Store
        TAD (SHPLST)           / Get address to list of shapes
        TAD SHPIDX             / Add current shape index
        DCA CSHAPE             / Store pointer (use CSHAPE as temp store)
        TAD I CSHAPE           / Dereference to get shape descriptor pointer
        IAC                    / Skip size
-       TAD SHPROT             / Jump to current rotation in descriptor array
+       TAD CSHROT             / Jump to current rotation in descriptor array
        DCA CSHAPE             / Store pointer (again CSHAPE as temp store)
        TAD I CSHAPE           / Get current shapes current rotation
        DCA CSHAPE             / Store as current shape
@@ -253,8 +253,8 @@ LKEY,
 / Reset
 /
 RKEY,
-       JMS INIT
-       JMP INPUT
+       JMS INIT               / Clear field, reset variables
+       JMP INPUT              / Start over, get next action
 
 /
 / Update playing field and display
@@ -262,6 +262,10 @@ RKEY,
 UPDATE,
        JMS IFILLM             / Check if current position is illegal
        JMP INPUT              / Then get next action
+
+/
+/ Erase "oldpos"
+/
 
        TAD PXPOS              / Erase previous position
        CLL RAL                / Multiply by two (each block is double wide)
@@ -277,6 +281,10 @@ UPDATE,
        TAD PSHAPE             / Get previous shape
        JMS DRAWS              / Clear it
        1                      / Argument for DRAWS, clear shape
+
+/
+/ Draw "newpos"
+/
 
        TAD CXPOS              / Draw new position
        CLL RAL                / Multiply by two (each block is double wide)
@@ -303,67 +311,75 @@ UPDATE,
 
 PAGE
 
-ILLPOS, 0
+/
+/ FIXPOS, make the current shape permanent at the current position in
+/ the game field.
+/
+
+FIXPOS,0
 FIXSHP,0
-       / First setup shape data iterator
-       NL7777
-       TAD CSHAPE
-       DCA AIX                   / Location of shape is in AC. Store in index register
-       TAD SHPSIZ                  / Get size
-       CIA                       / Invert for loop use
-       DCA LOOPJ                 / Store as outer loop index
+       NL7777                 / First setup shape data iterator
+       TAD CSHAPE             / Get location of current shape-1
+       DCA AIX                / Store in auto index register
 
-       JMS CALCPO         / Get position within field in AC
-       DCA ILLPOS
+       JMS CALCPO             / Get position within game field
+       DCA FIXPOS             / Store
 
+       TAD CSHSIZ             / Get size
+       CIA                    / Invert for loop use
+       DCA LOOPI              / Store as outer loop index
 ILLOOP,
-       TAD SHPSIZ
-       CIA
-       DCA LOOPI
+       TAD CSHSIZ             / Get size again
+       CIA                    / Invert for inner loop
+       DCA LOOPJ              / Store as inner loop index
 JLLOOP,
-       TAD I AIX
-       SZA
-       DCA I ILLPOS       / Put something in field
-       ISZ ILLPOS          / Increment field pointer
-       ISZ LOOPI
-       JMP JLLOOP
+       TAD I AIX              / Get next block in shape
+       SZA                    / Is it zero?
+       DCA I FIXPOS           / No, Put it in game field
+       ISZ FIXPOS             / Increment field pointer
+       ISZ LOOPJ              / Is loop done?
+       JMP JLLOOP             / No, get next block in row
 
-       TAD SHPSIZ
-       CIA
-       TAD ILLPOS
-       TAD (FLDW)
-       DCA ILLPOS
-       ISZ LOOPJ
-       JMP ILLOOP
-       JMP I FIXSHP
+       TAD CSHSIZ             / Get shape size again
+       CIA                    / Subtract from:
+       TAD FIXPOS             / Field position
+       TAD (FLDW)             / Add width to get start of next row
+       DCA FIXPOS             / Store updated position
+       ISZ LOOPI              / Is outer loop done?
+       JMP ILLOOP             / No, do next row
+       JMP I FIXSHP           / Yes, return
 
 /
-/ Spawns new shape
+/ SPNSHP, spawns new shape by resetting current shape structure and
+/ getting the next shape in the global shape list.
 /
+/ TODO, permute shapelist when SHPIDX wraps to get "bag of seven"
+/ behaviour.
+/
+
 SPNSHP,0
        JMS MEMSET             / Reset all current and previous values
        CSHAPE                 / Arg for MEMSET, starting position
        DOWNMV+1-CSHAPE        / size of all variables including DOWNMV
        0                      / Value to set
-       NL0002             / Add two to SHPIDX (1 to get into 1..7 range, and 1 to increment)
-       TAD SHPIDX         / Get SHPIDX
-       AND (7)            / Wrap arround at 7
-       SZA                / If wrapped to 0
-       TAD (-1)           / Remove one, thus index is 0..6
-       DCA SHPIDX         / Save
-       TAD (SHPLST)         / Get SHPLST address
-       TAD SHPIDX         / Add index
-       DCA CSHAPE         / Temporary store in current shape pointer
-       TAD I CSHAPE       / Get pointer to shape descriptor
-       DCA CSHAPE         / Again use CSHAPE as temp
-       TAD I CSHAPE       / Get size
-       DCA SHPSIZ         / Store size val
-       ISZ CSHAPE         / Skip size
-       TAD CSHAPE         / Get pointer to shape rotation list
-       TAD SHPROT         / Get current rotation
-       DCA CSHAPE         / Again store temporarily in CSHAPE
-       TAD I CSHAPE       / Get pointer to actual shape
-       DCA CSHAPE         / Store as current shape pointer
+       NL0002                 / Add two to SHPIDX (1 to get into 1..7 range, and 1 to increment)
+       TAD SHPIDX             / Get SHPIDX
+       AND (7)                / Wrap arround at 7
+       SZA                    / Did it wrap to 0 ?
+       TAD (-1)               / No, remove one, so index is 0..6
+       DCA SHPIDX             / Save
+       TAD (SHPLST)           / Get SHPLST address
+       TAD SHPIDX             / Add index
+       DCA CSHAPE             / Temporary store in current shape pointer
+       TAD I CSHAPE           / Get pointer to shape descriptor
+       DCA CSHAPE             / Again use CSHAPE as temp
+       TAD I CSHAPE           / Get size
+       DCA CSHSIZ             / Store size val
+       ISZ CSHAPE             / Skip size
+       TAD CSHAPE             / Get pointer to shape rotation list
+       DCA CSHAPE             / Again store temporarily in CSHAPE
+       TAD I CSHAPE           / Get pointer to actual shape
+       DCA CSHAPE             / Store as current shape pointer
        JMP I SPNSHP
 
 /
@@ -405,19 +421,20 @@ INIT,  0
 
 PAGE
 
-/ Calculate FLDPOS, leave in AC
-
+/
+/ CALCPO Calculate FLDPOS, leave in AC
+/
 CALCPO,0
-       TAD CYPOS                 / Get current Y position
-       CMA                       / Invert for loop
-       DCA LOOPI                 / Put in location loop
-       TAD (FIELDP)               / Get field pointer
-       JMP .+2                   / Skip first add
-ILOOP, TAD (FLDW)                / Add field width to get to next row
-       ISZ LOOPI                 / Loop check
-       JMP ILOOP
-       TAD CXPOS                 / Add X offset
-       JMP I CALCPO
+       TAD CYPOS              / Get current Y position
+       CMA                    / Negate and subtract 1
+       DCA LOOPI              / Store in loop index
+       TAD (FIELDP)           / Get field pointer
+       JMP .+2                / Skip first add (since Y starts at 0)
+ILOOP, TAD (FLDW)             / Add field width to get to next row
+       ISZ LOOPI              / Is Y zero?
+       JMP ILOOP              / No, add width again
+       TAD CXPOS              / Add X offset
+       JMP I CALCPO           / Return
 
 /
 / Check possibility
@@ -433,7 +450,7 @@ IFILLM,0
        NL7777                 / First setup shape data iterator
        TAD CSHAPE
        DCA AIX                / AIX is first index register
-       TAD SHPSIZ             / Get size
+       TAD CSHSIZ             / Get size
        CIA                    / Invert for loop use
        DCA LOOPJ              / Store as outer loop index
 
@@ -446,7 +463,7 @@ IFILLM,0
        DCA FIELDY
 
 LSHROW,                       / Loop over rows in shape
-       TAD SHPSIZ             / Get size again
+       TAD CSHSIZ             / Get size again
        CIA                    / Invert for loop use
        DCA LOOPI              / Stor as inner loop index
 
@@ -484,7 +501,7 @@ LDCONT,                       / If we get here, there was no collision
 
        TAD CXPOS              / Inner loop done
        DCA FIELDX             / Store starting X position
-       TAD SHPSIZ             / Get width
+       TAD CSHSIZ             / Get width
        CIA                    / Subtract from field position
        TAD FLDPOS             / Get current field position
        TAD (FLDW)             / Move field position to next row
@@ -509,15 +526,15 @@ PRVPOS,
        JMP I IFILLM           / Return
 
 /
+/ TODO-list:
+/
+
+/
 / Wallkick translation
 /
 
 /
 / Check if we have reached "bottom" and timer expired.
-/
-
-/
-/ Spawn new block
 /
 
 /
@@ -534,14 +551,6 @@ PRVPOS,
 
 /
 / Calculate hat of seven
-/
-
-/
-/ Erase "oldpos"
-/
-
-/
-/ Draw "newpos"
 /
 
 /
@@ -605,12 +614,12 @@ ENDCELL,
 DRAWS, 0
        TAD (-1)
        DCA AIX                   / Location of shape is in AC. Store in index register
-       TAD SHPSIZ                / Get size
+       TAD CSHSIZ                / Get size (Todo, use argument as PSHP is drawn as well)
        CIA                       / Invert for loop use
        DCA LOOPJ                 / Store as outer loop index
 BROWS,
        CLA
-       TAD SHPSIZ                / Get size again
+       TAD CSHSIZ                / Get size again
        CIA                       / Invert for loop use
        DCA LOOPI                 / Stor as inner loop index
 BCOLS,
@@ -643,8 +652,8 @@ DCONT,
        TAD ("0                   / Move back twize the size of shape
        DCA BACK
        TAD ("0
-       TAD SHPSIZ
-       TAD SHPSIZ
+       TAD CSHSIZ
+       TAD CSHSIZ
        DCA BACK+1
        TAD (MOVB-1
        JMS PUTS
