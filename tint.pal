@@ -119,55 +119,51 @@ LKEY,
        ISZ CXPOS              / Increment X position (move right)
        JMP UPDATE             / Update screen
 UPDATE,
-       JMS LEGALM             / Check if current position is legal
-       JMP INPUT              / Will be skipped if move is legal
+       JMS IFILLM             / Check if current position is illegal
+       JMP INPUT              / Then get next action
 
-       / Erase previous position
-       TAD PXPOS
-       CLL RAL / Multiply by two
-       TAD (TERMW%2-FLDW)
-       IAC       / Starting column is 1
-       JMS ITOA
+       TAD PXPOS              / Erase previous position
+       CLL RAL                / Multiply by two (each block is double wide)
+       TAD (TERMW%2-FLDW+1)   / Add field X offset (Starting column is 1)
+       JMS ITOA               / Get ASCII X coordinate
        XPOS                   / Target address, argument for ITOA
-       TAD PYPOS
-       IAC       / Starting row is 1
-       JMS ITOA
+       TAD PYPOS              / Get previous Y position
+       IAC                    / Starting row is 1
+       JMS ITOA               / Get ASCII Y coordinate
        YPOS                   / Target address, argument for ITOA
-       TAD [MOVXY-1]
-       JMS PUTS
-       TAD PSHAPE
-       JMS DRAWS
-       1                  / Argument for DRAWS, clear shape
+       TAD [MOVXY-1]          / Get pointer to move string
+       JMS PUTS               / Position cursor
+       TAD PSHAPE             / Get previous shape
+       JMS DRAWS              / Clear it
+       1                      / Argument for DRAWS, clear shape
 
-       / Draw new position
-       CLA
-       TAD CXPOS
-       CLL RAL / Multiply by two
-       TAD (TERMW%2-FLDW)
-       IAC       / Starting column is 1
-       JMS ITOA
+       TAD CXPOS              / Draw new position
+       CLL RAL                / Multiply by two (each block is double wide)
+       TAD (TERMW%2-FLDW+1)   / Add field X offset (Starting column is 1)
+       JMS ITOA               / Get ASCII X coordinate
        XPOS                   / Target address, argument for ITOA
-       TAD CYPOS
-       IAC       / Starting row is 1
-       JMS ITOA
+       TAD CYPOS              / Get current Y position
+       IAC                    / Starting row is 1
+       JMS ITOA               / Get ASCII Y coordinate
        YPOS                   / Target address, argument for ITOA
-       TAD [MOVXY-1]
-       JMS PUTS
-       TAD CSHAPE
-       JMS DRAWS
-       0                    / Argument for DRAWS. Do not clear, draw.
-       TAD CXPOS            / Update previous posistions after a move
-       DCA PXPOS
+       TAD [MOVXY-1]          / Get pointer to move string
+       JMS PUTS               / Position cursor
+       TAD CSHAPE             / Get current shape
+       JMS DRAWS              / Draw it
+       0                      / Argument for DRAWS. Do not clear, draw.
+
+       TAD CXPOS              / Update previous positions after a move
+       DCA PXPOS              / TODO implement MEMCPY
        TAD CYPOS
        DCA PYPOS
-       TAD CSHAPE           / Update previous shape
+       TAD CSHAPE             / Update previous shape
        DCA PSHAPE
        TAD SHPROT
        DCA PSHROT
        TAD SHPSIZ
        DCA PSHSIZ
-       DCA DOWNMV         / Reset DOWNMV boolean
-       JMP INPUT
+       DCA DOWNMV             / Reset DOWNMV boolean
+       JMP INPUT              / Get next action
 
 PAGE
 
@@ -203,9 +199,13 @@ JLLOOP,
        DCA ILLPOS
        ISZ LOOPJ
        JMP ILLOOP
+       JMP I FIXSHP
 
-/ TODO looping done, the code below spawns new shape
-       DCA CXPOS
+/
+/ Spawns new shape
+/
+SPNSHP,0
+       DCA CXPOS          / TODO implement MEMCLR (and MEMMOV)
        DCA CYPOS
        DCA PXPOS
        DCA PYPOS
@@ -230,7 +230,7 @@ JLLOOP,
        DCA CSHAPE         / Again store temporarily in CSHAPE
        TAD I CSHAPE       / Get pointer to actual shape
        DCA CSHAPE         / Store as current shape pointer
-       JMP I FIXSHP
+       JMP I SPNSHP
 
 /
 / Init
@@ -278,7 +278,7 @@ CALCPO,0
        TAD CYPOS                 / Get current Y position
        CMA                       / Invert for loop
        DCA LOOPI                 / Put in location loop
-       TAD (FIELD)               / Get field pointer
+       TAD (FIELDP)               / Get field pointer
        JMP .+2                   / Skip first add
 ILOOP, TAD (FLDW)                / Add field width to get to next row
        ISZ LOOPI                 / Loop check
@@ -296,7 +296,7 @@ ILOOP, TAD (FLDW)                / Add field width to get to next row
 FIELDX,0
 FIELDY,0
 FLDPOS,0
-LEGALM,0
+IFILLM,0
        NL7777                 / First setup shape data iterator
        TAD CSHAPE
        DCA AIX                / AIX is first index register
@@ -359,8 +359,8 @@ LDCONT,                       / If we get here, there was no collision
        ISZ FIELDY             / Update Y position
        ISZ LOOPJ              / Increment outer loop, one row done
        JMP LSHROW             / Go to next row
-       ISZ LEGALM             / legal move, increment return address
-       JMP I LEGALM           / All rows done, return to caller.
+       ISZ IFILLM             / legal move, increment return address
+       JMP I IFILLM           / All rows done, return to caller.
 
 PRVPOS,                       / Restore position, rotation, shape and size
        TAD PXPOS
@@ -374,9 +374,11 @@ PRVPOS,                       / Restore position, rotation, shape and size
        TAD PSHSIZ
        DCA SHPSIZ
        TAD DOWNMV             / Was this a downwards move?
-       SZA CLA
+       SNA CLA
+       JMP .+3
        JMS FIXSHP             / Yes, make shape permanent in field
-       JMP I LEGALM
+       JMS SPNSHP             / And spawn new shape
+       JMP I IFILLM           / Return
 
 /
 / Wallkick translation
@@ -420,8 +422,8 @@ PRVPOS,                       / Restore position, rotation, shape and size
 PAGE
 DRAWF, 0
        CLA
-/       TAD (FIELD-01+FLDW+FLDW   / Skip two invisible top lines
-       TAD (FIELD-01
+/       TAD (FIELDP-01+FLDW+FLDW   / Skip two invisible top lines
+       TAD (FIELDP-01
        DCA AIX
 /       TAD (FLDH-02              / Loop over visible rows
        TAD (FLDH
@@ -805,7 +807,7 @@ ERASE,  ESC
 PAGE
 
 /
-/ ITOA - Convert integer between 0-99 to double digit ascii
+/ ITOA - Convert integer between 0-99 to double digit ASCII
 /        AC has value, ITOA+1 has target address.
 /
 
@@ -836,7 +838,7 @@ NXTDGT, ISZ TARGET            / Advance target pointer
 / Reserve space for game field
 /
        PAGE
-FIELD, ZBLOCK FLDS
-/       *FIELD+FLDS
-FIELDEND, HLT
+FIELDP, ZBLOCK FLDS
+/       *FIELDP+FLDS
+FLDEND, HLT
 $
