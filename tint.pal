@@ -52,6 +52,7 @@ PSHSIZ,3                      / Previous shape size
 / it's used to determine their combined size.
 /
 DOWNMV,0                      / non-zero if last movement was down
+HRDDRP,0                      / User pressed space, hard drop in progress.
 
 SHPIDX,0                      / Current index into SHPLST
 SHPLST,SHAPEL                 / List of pointers to shapes
@@ -65,6 +66,26 @@ TEMP,  0                      / Temporaries used here and there
 TEMP2, 0
 LOOPI, 0                      / Loop variables used here and there
 LOOPJ, 0
+
+/
+/ Time limits
+/
+/ This code should run on a CPU without real time clock. So we
+/ maintain a few "timers" which is just counters. When they reach 0
+/ they have timed out. A positive limit just means that the time
+/ must wrap arround.
+/
+/ Timers and their limits should go in the same order, TIMER1 and
+/ LIMIT1 must be first as timers are reset by MEMCPYing data at
+/ LIMIT1..LIMIT1+(LIMIT1-TIMER1) to TIMER1
+
+
+TIMER1, 0                     / Main timer for gravity.
+TIMER2, -70                   / Two timers necessary for fast CPUs
+HRDTIM, -1000                 / Hard drop timer
+LIMIT1, 0                     / TIMER1 limit
+LIMIT2, -70                   / TIMER2 limit
+HRDLIM, -1000                 / Hard drop limit
 
 /
 / Globally usefull routines
@@ -185,8 +206,25 @@ NXTDGT, ISZ TARGET            / Advance target pointer
        *200
        JMS INIT
        KCC
+MAIN,  TAD HRDDRP             / Get hard drop flag
+       SNA CLA                / Is a hard drop in progress?
+       JMP TCONT              / No, continue to next timer
+       ISZ HRDTIM             / Yes, has hard drop timed out?
+       JMP MAIN               / No, check again
+       TAD HRDLIM             / Yes, reset hard drop timer
+       DCA HRDTIM
+       JMP JKEY               / And fake a down move
+TCONT, ISZ TIMER1             / Has timer1 timed out?
+       JMP INPUT              / No, get input
+       ISZ TIMER2             / Yes, has timer2 also timed out?
+       JMP INPUT              / No, get input
+       TAD LIMIT1             / Yes reset both timers
+       DCA TIMER1
+       TAD LIMIT2
+       DCA TIMER2
+       JMP JKEY               / Then fake a down move
 INPUT, KSF                    / Test keyboard flag
-       JMP INPUT              / Input loop
+       JMP MAIN               / Main event loop
        KRB                    / Read keystroke
        DCA TEMP               / Store key for later comparison
        TAD TEMP
@@ -209,7 +247,11 @@ INPUT, KSF                    / Test keyboard flag
        TAD (-"r+0200)         / Compare to r
        SNA CLA
        JMP RKEY
-       JMP INPUT              / Unused key, return to input loop
+       TAD TEMP
+       TAD (-" +0200)         / Compare to space
+       SNA CLA
+       JMP SPCKEY
+       JMP MAIN              / Unused key, return to input loop
 /
 / Move left
 /
@@ -255,14 +297,20 @@ LKEY,
 /
 RKEY,
        JMS INIT               / Clear field, reset variables
-       JMP INPUT              / Start over, get next action
+       JMP MAIN               / Start over, get next action
 
+/
+/ Hard drop
+/
+SPCKEY,
+       ISZ HRDDRP             / Set hard drop flag
+       JMP MAIN               / Handle drop in main event loop
 /
 / Update playing field and display
 /
 UPDATE,
        JMS IFILLM             / Check if current position is illegal
-       JMP INPUT              / Then get next action
+       JMP MAIN               / Then get next action
 
 /
 / Erase "oldpos"
@@ -308,7 +356,7 @@ UPDATE,
        PSHAPE-CSHAPE          / ARG for MEMCPY, size of struct
 
        DCA DOWNMV             / Reset DOWNMV boolean
-       JMP INPUT              / Get next action
+       JMP MAIN               / Get next action
 
 PAGE
 
@@ -329,17 +377,17 @@ FIXSHP,0
        TAD CSHSIZ             / Get size
        CIA                    / Invert for loop use
        DCA LOOPI              / Store as outer loop index
-ILLOOP,
+FILOOP,
        TAD CSHSIZ             / Get size again
        CIA                    / Invert for inner loop
        DCA LOOPJ              / Store as inner loop index
-JLLOOP,
+FJLOOP,
        TAD I AIX              / Get next block in shape
        SZA                    / Is it zero?
        DCA I FIXPOS           / No, Put it in game field
        ISZ FIXPOS             / Increment field pointer
        ISZ LOOPJ              / Is loop done?
-       JMP JLLOOP             / No, get next block in row
+       JMP FJLOOP             / No, get next block in row
 
        TAD CSHSIZ             / Get shape size again
        CIA                    / Subtract from:
@@ -347,7 +395,7 @@ JLLOOP,
        TAD (FLDW)             / Add width to get start of next row
        DCA FIXPOS             / Store updated position
        ISZ LOOPI              / Is outer loop done?
-       JMP ILLOOP             / No, do next row
+       JMP FILOOP             / No, do next row
        JMP I FIXSHP           / Yes, return
 
 /
@@ -385,6 +433,10 @@ SPNSHP,0
        DCA PSHAPE             / And use it to init previous pointer
        TAD CSHSIZ             / Get size
        DCA PSHSIZ             / And init previous size
+       JMS MEMCPY             / Reset timers
+       LIMIT1                 / ARG for MEMCPY, copy from limits
+       TIMER1                 / ARG for MEMCPY, copy to timers
+       LIMIT1-TIMER1          / ARG for MEMCPY, number of timers
        JMP I SPNSHP
 
 /
@@ -523,11 +575,12 @@ PRVPOS,
        CSHAPE                 / ARG for MEMCPY, copy to current shape
        PSHAPE-CSHAPE          / ARG for MEMCPY, size of struct
 
-       TAD DOWNMV             / Was this a downwards move?
-       SNA CLA
-       JMP .+3
-       JMS FIXSHP             / Yes, make shape permanent in field
-       JMS SPNSHP             / And spawn new shape
+       TAD DOWNMV
+       SNA CLA                / Was this a downwards move?
+       JMP I IFILLM           / No, Return
+       DCA HRDDRP             / Yes, Reset possible hard drop
+       JMS FIXSHP             / and make shape permanent in field
+       JMS SPNSHP             / and spawn new shape
        JMP I IFILLM           / Return
 
 /
