@@ -248,6 +248,7 @@ KKEY,
 /
 LKEY,
        ISZ CXPOS              / Increment X position (move right)
+       NOP                    / X might transition from -1 to 0
        JMP UPDATE             / Update screen
 /
 / Reset
