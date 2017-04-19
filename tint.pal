@@ -209,14 +209,14 @@ NXTDGT, ISZ TARGET            / Advance target pointer
 MAIN,  TAD HRDDRP             / Get hard drop flag
        SNA CLA                / Is a hard drop in progress?
        JMP TCONT              / No, continue to next timer
-       ISZ HRDTIM             / Yes, has hard drop timed out?
+       ISZ HRDTIM             / Yes, has hard drop delay timed out?
        JMP MAIN               / No, check again
        TAD HRDLIM             / Yes, reset hard drop timer
        DCA HRDTIM
        JMP JKEY               / And fake a down move
-TCONT, ISZ TIMER1             / Has timer1 timed out?
+TCONT, ISZ TIMER1             / Has drop delay timed out?
        JMP INPUT              / No, get input
-       ISZ TIMER2             / Yes, has timer2 also timed out?
+       ISZ TIMER2             / Yes, has drop delay two also timed out?
        JMP INPUT              / No, get input
        TAD LIMIT1             / Yes reset both timers
        DCA TIMER1
@@ -226,32 +226,36 @@ TCONT, ISZ TIMER1             / Has timer1 timed out?
 INPUT, KSF                    / Test keyboard flag
        JMP MAIN               / Main event loop
        KRB                    / Read keystroke
+       AND (37)               / Get lower bits (no "partiy" or case bits)
        DCA TEMP               / Store key for later comparison
        TAD TEMP
-       TAD (-"h+0200)         / Compare to h
+       TAD (-10)              / Compare to h
        SNA CLA                / If zero, we got an 'h'
        JMP HKEY               / Go to handling of 'h'
        TAD TEMP               / If not, get keystroke again
-       TAD (-"j+0200)         / Compare to j
+       TAD (-12)              / Compare to j
        SNA CLA
        JMP JKEY
        TAD TEMP
-       TAD (-"k+0200)         / Compare to k
+       TAD (-13)              / Compare to k
        SNA CLA
        JMP KKEY
        TAD TEMP
-       TAD (-"l+0200)         / Compare to l
+       TAD (-14)              / Compare to l
        SNA CLA
        JMP LKEY
        TAD TEMP
-       TAD (-"r+0200)         / Compare to r
+       TAD (-21)              / Compare to q
+       SNA CLA
+       HLT
+       TAD TEMP
+       TAD (-22)              / Compare to r
        SNA CLA
        JMP RKEY
        TAD TEMP
-       TAD (-" +0200)         / Compare to space
-       SNA CLA
+       SNA CLA                / Compare to space (zero)
        JMP SPCKEY
-       JMP MAIN              / Unused key, return to input loop
+       JMP MAIN               / Unused key, return to input loop
 /
 / Move left
 /
