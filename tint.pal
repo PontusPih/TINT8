@@ -474,9 +474,9 @@ LSHROW,                       / Loop over rows in shape
 
 LSHCOL,                       / Inner loop over columns in shape
        TAD I AIX              / Get shape data
-       SNA CLA                / If zero, continue to next pos
-       JMP LDCONT
-                              / Else check field for collision
+       SNA CLA                / Is shape data zero/blank?
+       JMP LDCONT             / Yes, continue with next block
+                              / No, check field for collision
                               / 1st. check if X is out of bounds
        TAD FIELDX             / Get X
        SPA CLA                / Check if negative
@@ -564,105 +564,104 @@ PRVPOS,
 PAGE
 DRAWF, 0
        CLA
-/       TAD (FIELDP-01+FLDW+FLDW   / Skip two invisible top lines
-       TAD (FIELDP-01
-       DCA AIX
-/       TAD (FLDH-02              / Loop over visible rows
-       TAD (FLDH
-       CIA
-       DCA LOOPI
+/      TAD (FIELDP-01+FLDW+FLDW)   / TODO Skip two invisible top lines
+       TAD (FIELDP-1)         / Get field pointer -1
+       DCA AIX                / Store in auto index register
+/      TAD (FLDH-2)           / TODO Loop over visible rows
+       TAD (FLDH)             / Get field height
+       CIA                    / Invert for loop
+       DCA LOOPI              / Put in outer loop variable
 ROWS,
-       TAD (FLDW                 / Loop over columns
-       CIA
-       DCA LOOPJ
-       TAD ("<                   / Start by outputing <!
+       TAD (FLDW)             / Get field width
+       CIA                    / Invert for loop
+       DCA LOOPJ              / Put in inner loop variable
+       TAD ("<)               / Start by outputing <!
        JMS PUTC
-       TAD ("!
+       TAD ("!)
        JMS PUTC
 COLS,
-       TAD I AIX                 / Get cell
-       SNA CLA                   / Nonzero means a block
-       JMP ISBLNK
+       TAD I AIX              / Get field cell
+       SNA CLA                / Is zero?
+       JMP ISBLNK             / Yes, draw a blank/empty cell
 ISBLCK,
-       TAD ("[
+       TAD ("[)               / No, draw a block: []
        JMS PUTC
-       TAD ("]
+       TAD ("])
        JMS PUTC
-       JMP ENDCELL
+       JMP ENDCELL            / This cell is done
 ISBLNK,
-       TAD (".
+       TAD (".)               / Draw blank: ..
        JMS PUTC
-       TAD (".
+       TAD (".)
        JMS PUTC
 ENDCELL,
-       ISZ LOOPJ
-       JMP COLS                  / Column loop end
-       TAD ("!                   / End by outputing !>
+       ISZ LOOPJ              / Is row done?
+       JMP COLS               / No, check next column
+       TAD ("!)               / Yes, end by outputing !>
        JMS PUTC
-       TAD (">
+       TAD (">)
        JMS PUTC
-       TAD (MOVD-1               / And move cursor down and back
+       TAD (MOVD-1)           / And move cursor down one step
        JMS PUTS
-       TAD ("2                   / Move back 24. TODO do this once
+       TAD ("2)               / Move back 24 (2*width). TODO do this once
        DCA BACK
-       TAD ("4
+       TAD ("4)
        DCA BACK+1
-       TAD (MOVB-1
+       TAD (MOVB-1)
        JMS PUTS
-       ISZ LOOPI                 / Loop over number of rows
-       JMP ROWS
-       JMP I DRAWF               / Return
+       ISZ LOOPI              / Is all rows done?
+       JMP ROWS               / No, do next row
+       JMP I DRAWF            / Yes, return
 
 /
 / Draw shape, AC contains location
 /
 DRAWS, 0
        TAD (-1)
-       DCA AIX                   / Location of shape is in AC. Store in index register
-       TAD CSHSIZ                / Get size (Todo, use argument as PSHP is drawn as well)
-       CIA                       / Invert for loop use
-       DCA LOOPJ                 / Store as outer loop index
+       DCA AIX                / Location of shape is in AC. Store in index register
+       TAD CSHSIZ             / Get size (Todo, use argument as PSHP is drawn as well)
+       CIA                    / Invert for loop use
+       DCA LOOPJ              / Store as outer loop index
 BROWS,
-       CLA
-       TAD CSHSIZ                / Get size again
-       CIA                       / Invert for loop use
-       DCA LOOPI                 / Stor as inner loop index
+       TAD CSHSIZ             / Get size again
+       CIA                    / Invert for loop use
+       DCA LOOPI              / Stor as inner loop index
 BCOLS,
-       TAD I AIX                 / Walk through shape data
-       SZA CLA                   / If zero, draw blank
-       JMP DBLCK                 / Else draw block
+       TAD I AIX              / Walk through shape data
+       SZA CLA                / Is shape data set?
+       JMP DBLCK              / Yes, Draw block
 DBLNK,
-       TAD (MOVF-1               / Move cursor to "draw" transparent block
+       TAD (MOVF-1)           / No, move cursor to "draw" transparent block
        JMS PUTS
-       TAD (MOVF-1
+       TAD (MOVF-1)
        JMS PUTS
-       JMP DCONT                 / Continue loop
+       JMP DCONT              / Continue
 DBLCK,
-       TAD I DRAWS               / First argument, should we clear?
-       SZA CLA                   / if non-zero
-       JMP DCBLCK                / We should clear block
-       TAD ("[                   / Draw block by outputing [] pair
+       TAD I DRAWS            / First argument, should we clear?
+       SZA CLA                / Is CLEAR argument set?
+       JMP DCBLCK             / Yes, should clear block
+       TAD ("[)               / No, Draw block by outputing: []
        JMS PUTC
-       TAD ("]
+       TAD ("])
        JMS PUTC
-       JMP DCONT
+       JMP DCONT              / Continue
 DCBLCK,
-       TAD (".)                  / Clear block by outputing two dots
+       TAD (".)               / Clear block by outputing two dots
        JMS PUTC
        TAD (".)
        JMS PUTC
 DCONT,
-       ISZ LOOPI                 / Increment inner loop, one block processed
-       JMP BCOLS                 / Go to next column
-       TAD ("0                   / Move back twize the size of shape
+       ISZ LOOPI              / Is row done?
+       JMP BCOLS              / No, go to next column
+       TAD ("0)               / Yes, Move back twize the size of shape
        DCA BACK
-       TAD ("0
+       TAD ("0)
        TAD CSHSIZ
        TAD CSHSIZ
        DCA BACK+1
-       TAD (MOVB-1
+       TAD (MOVB-1)
        JMS PUTS
-       TAD (MOVD-1
+       TAD (MOVD-1)
        JMS PUTS                 / Move down
        ISZ LOOPJ                / Increment outer loop, one row done
        JMP BROWS                / Go to next row
