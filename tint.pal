@@ -381,6 +381,10 @@ SPNSHP,0
        DCA CSHAPE             / Again store temporarily in CSHAPE
        TAD I CSHAPE           / Get pointer to actual shape
        DCA CSHAPE             / Store as current shape pointer
+       TAD CSHAPE             / Get shape pointer again
+       DCA PSHAPE             / And use it to init previous pointer
+       TAD CSHSIZ             / Get size
+       DCA PSHSIZ             / And init previous size
        JMP I SPNSHP
 
 /
