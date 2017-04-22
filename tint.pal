@@ -14,6 +14,7 @@
 / Autoindex locations
       AIX=010
       AIY=011
+      AIZ=012
 
 / Constants
       FLDW=012                / Field height
@@ -605,6 +606,12 @@ PRVPOS,
        JMP I IFILLM           / No, Return
        DCA HRDDRP             / Yes, Reset possible hard drop
        JMS FIXSHP             / and make shape permanent in field
+       JMS ROWSCN             / Scan for full rows
+/       JMP I IFILLM           / No rows found, return
+       JMS CLRROW             / Rows found, clear
+       JMS REDRAW             / TODO, just redraw cleared row
+       JMS GRVFLD             / Gravitate field
+       JMS REDRAW             / Refresh full field
        JMS SPNSHP             / and spawn new shape
        JMP I IFILLM           / Return
 
@@ -614,22 +621,6 @@ PRVPOS,
 
 /
 / Wallkick translation
-/
-
-/
-/ Check if we have reached "bottom" and timer expired.
-/
-
-/
-/ Check for solid lines
-/
-
-/
-/ Erase lines
-/
-
-/
-/ Gravitate field
 /
 
 /
@@ -746,6 +737,186 @@ DCONT,
        ISZ DRAWS                / Skip over argumnet
        NOP
        JMP I DRAWS              / All rows done, return to caller.
+
+PAGE
+
+/
+/ ROWSCN, search for full rows
+/
+
+/ Look at the rows that the fallen piece might affect. Loop over rows
+/ from the piece starting position downwards as many rows as the piece
+/ is high.
+
+/ For each full row that is found, put a pointer to it in the DELROW list
+/ The DELROW content will that should be removed.
+
+
+DELROW,1
+       2
+       3
+       4
+
+ROWPOS,0
+COLPOS,0
+ROWSCN,0
+       JMS CALCPO             / Calculate field position
+       DCA ROWPOS             / Store
+       TAD CXPOS              / Get current X position
+       CIA                    / Negate
+       TAD (-FLDW)            / Loop precrements ROW, so start one before
+       TAD ROWPOS             / Subtract from ROWPOS
+       DCA ROWPOS             / ROWPOS now starts at left of field
+
+       TAD CSHSIZ             / Get size,
+       CIA                    / Negate for loop
+       DCA LOOPI              / Put in outer loop variable
+       DCA DELROW             / Initialize list with null pointer
+       TAD (DELROW-1)         / Get pointer to deleter row list
+       DCA AIX                / Initialize auto index register
+
+RLOOPI,
+       TAD (-FLDW)            / Get negative field width for loop
+       DCA LOOPJ              / Put in inner loop variable
+       TAD ROWPOS             / Get ROWPOS
+       TAD (FLDW)             / Get next row
+       DCA ROWPOS             / Update ROWPOS
+       TAD (-FLDEND)          / Get end of field, for bounds check
+       TAD ROWPOS             / Compare to row pos
+       SMA SZA CLA            / Is inside field?
+       JMP ROWEND             / No, finish up
+       TAD ROWPOS             / Yes, get ROWPOS
+       DCA COLPOS             / And initialize COLPOS for search
+
+RLOOPJ,
+       TAD I COLPOS           / Get block from field
+       SZA CLA                / Is there a block here?
+       JMP ISBLOC             / Yes, handle it below
+       JMP ROWCNT             / No, Go to next row
+
+ISBLOC,
+       ISZ COLPOS             / Move to next block
+       ISZ LOOPJ              / Is row scanned?
+       JMP RLOOPJ             / No, check next block
+       TAD ROWPOS             / Yes, mark row as deleted
+       DCA I AIX              / Put row pointer in deleted rows list
+
+ROWCNT,
+       ISZ LOOPI              / Is outer loop done?
+       JMP RLOOPI             / No, check next row
+
+ROWEND,
+       DCA I AIX              / Put a null terminator DELROW list
+/       TAD DELROW             / Get first deleted row
+/       SZA CLA                / Was at least one row deleted?
+/       ISZ ROWSCN             / Yes, skip instruction at return address
+       JMP I ROWSCN
+
+/
+/ CLRROW Clear rows
+/
+
+CLRROW,0
+       TAD (DELROW-1)
+       DCA AIZ                / MEMSET uses AIX, Redraw uses AIY
+RWLOOP,
+       TAD I AIZ
+       SNA
+       JMP I CLRROW
+       DCA CSTART
+       JMS MEMSET
+CSTART,0
+       12
+       0
+       JMP RWLOOP
+
+/
+/ GRVFLD, gravitate field.
+/
+
+GRVPOS,0
+GRVNXT,0
+GRVSIZ,0
+GRVFLD,0
+       TAD (DELROW)           / Get pointer to list of deleted rows / TODO as argument
+       DCA GRVPOS             / Store for loop
+GILOOP,
+       TAD I GRVPOS           / Get next row pointer
+       SNA CLA                / Is there something to gravitate?
+       JMP I GRVFLD           / No, return
+       TAD GRVPOS             / Yes, Get the next pointer
+       IAC                    / Move forward
+       DCA GRVNXT             / Initialize loop variable for next pointer
+       TAD (FLDW)             / Get width of field
+       DCA GRVSIZ             / Initialize size
+GJLOOP,
+       TAD GRVSIZ             / Add current size to:
+       TAD I GRVPOS           / Current row
+       CIA                    / Invert for comparison
+       TAD I GRVNXT           / Compare to next line
+       SZA CLA                / Is it consecutive? (zero pointer will fail here too)
+       JMP GCONT              / No, continue with gravitation
+       TAD (FLDW)             / Get again
+       TAD GRVSIZ             / Add to GRVSIZ
+       DCA GRVSIZ             / Update GRVSIZ
+       ISZ GRVNXT             / Move next pointer forward
+       JMP GJLOOP             / And see if next is also consecutive
+
+GCONT,
+       TAD (FIELDP)           / Get field pointer
+       TAD GRVSIZ             / Add size of gravitated rows
+       DCA GTARGT             / Store as target for block move
+       TAD (-FIELDP)          / Get field pointer again, subtract from:
+       TAD I GRVPOS           / Start of row to gravitate, to get:
+       DCA GTARGT+2           / Size argument for memmov
+       JMS MEMMVR             / Move block of memory forward
+GTARGT,0
+       FIELDP
+       0
+       TAD GRVNXT             / Get pointer to next row not gravitated
+       DCA GRVPOS             / Update outer loop pointer
+       JMP GILOOP             / And see if there is more to gravitate
+
+PAGE
+
+/
+/ MEMMVR, MEMory MoVe Right.
+/
+/ Move a block of memory to a new address. Moves bytes from the upper
+/ end of the block to handle that the target area starts inside the
+/ block.
+/
+
+MVRSRC,0
+MVRTRG,0
+MEMMVR,0
+       TAD I MEMMVR           / Get target address
+       DCA MVRTRG             / Store target
+       ISZ MEMMVR             / Move to next argument
+       TAD I MEMMVR           / Get source address
+       ISZ MEMMVR             / Move to next argument
+       TAD I MEMMVR           / Add size, point to one past the end
+       DCA MVRSRC             / Store updated source
+       TAD I MEMMVR           / Get size
+       TAD MVRTRG             / Add to targe, point to on past the end
+       DCA MVRTRG             / Store updated target
+       TAD I MEMMVR           / Get size
+       CIA                    / Invert size for loop
+       DCA LOOPI              / Store in loop variable
+       ISZ MEMMVR             / Move past last argument
+
+MRLOOP,
+       NL7777                 / Subtract 1
+       TAD MVRSRC             / From source address
+       DCA MVRSRC             / Update source address
+       NL7777                 / Subtract 1
+       TAD MVRTRG             / From target address
+       DCA MVRTRG             / Update target address
+       TAD I MVRSRC           / Get next word
+       DCA I MVRTRG           / Store in target
+       ISZ LOOPI              / Is everything copied?
+       JMP MRLOOP             / No, copy next word
+       JMP I MEMMVR           / Yes, Return
 
 PAGE
 / TODO save space by storing shape data as bit fields
