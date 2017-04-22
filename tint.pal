@@ -109,14 +109,14 @@ MEMSET,0
        TAD I MEMSET           / Which is size
        CIA                    / Negate for loop
        DCA LOOPI              / Put in loop variable
-       ISZ MEMSET             / Get next argument
-       TAD I MEMSET           / Which is value
-       ISZ MEMSET             / Setup return address
+       ISZ MEMSET             / Get next argument (value to set)
 MSLOOP,
+       TAD I MEMSET           / Get value argument
        DCA I AIX              / Store value through autoindex
        ISZ LOOPI              / Is loop done?
        JMP MSLOOP             / No, continue
-       JMP I MEMSET           / Yes, return
+       ISZ MEMSET             / Yes, setup return address
+       JMP I MEMSET           / return
 
 /
 / MEMCPY, copy one region of memory to another
