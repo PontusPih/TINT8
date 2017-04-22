@@ -253,6 +253,10 @@ INPUT, KSF                    / Test keyboard flag
        SNA CLA
        JMP RKEY
        TAD TEMP
+       TAD (-6)               / Compare to f
+       SNA CLA
+       JMP FKEY
+       TAD TEMP
        SNA CLA                / Compare to space (zero)
        JMP SPCKEY
        JMP MAIN               / Unused key, return to input loop
@@ -304,11 +308,20 @@ RKEY,
        JMP MAIN               / Start over, get next action
 
 /
+/ Freshen view, redraw
+/
+FKEY,
+       JMS REDRAW
+       JMP MAIN
+/
 / Hard drop
 /
 SPCKEY,
        ISZ HRDDRP             / Set hard drop flag
        JMP MAIN               / Handle drop in main event loop
+
+PAGE
+
 /
 / Update playing field and display
 /
@@ -452,6 +465,15 @@ INIT,  0
        FIELDP                 / Arg for MEMSET, pointer to field
        FLDS                   / Arg for MEMSET, field size
        0                      / Arg for MEMSET, value to set
+       JMS REDRAW             / Draw field
+       JMS SPNSHP             / Spawn a new shape
+       JMP I INIT             / Return
+
+/
+/ REDRAW, clear screen and redraw field
+/
+
+REDRAW,0
        TAD (ERASE-1)          / Load erase escape sequence
        JMS PUTS               / Output to terminal
        TAD (TERMW%2-FLDW-2+1) / Starting XPOS is middle of terminal (Start column is 1)
@@ -463,8 +485,7 @@ INIT,  0
        TAD [MOVXY-1]          / Position cursors
        JMS PUTS
        JMS DRAWF              / Draw empty field
-       JMS SPNSHP             / Spawn a new shape
-       JMP I INIT             / Return
+       JMP I REDRAW
 
 
 /
