@@ -39,14 +39,14 @@
 CSHAPE,SHAL0                  / Current shape, init to first rotation of L
 CXPOS, 0                      / Current X,Y Position
 CYPOS, 0
-CSHROT,0                      / Current rotation index
 CSHSIZ,3                      / Length of shape square.
+CSHROT,0                      / Current rotation index
 
 PSHAPE,SHAL0                  / Previous shape
 PXPOS, 0                      / Previous X,Y Position
 PYPOS, 0
-PSHROT,0                      / Previous rotation
 PSHSIZ,3                      / Previous shape size
+PSHROT,0                      / Previous rotation
 
 /
 / Down movement boolean, must be first variable after shape structures,
@@ -327,45 +327,16 @@ PAGE
 / Update playing field and display
 /
 UPDATE,
-       JMS IFILLM             / Check if current position is illegal
-       JMP MAIN               / Then get next action
+       JMS IFILLM             / Check if new position is illegal
+       JMP PRVPOS             / Yes, restore previous pos or check for solid lines
+                              / No, redraw the shape:
 
-/
-/ Erase "oldpos"
-/
-
-       TAD PXPOS              / Erase previous position
-       CLL RAL                / Multiply by two (each block is double wide)
-       TAD (TERMW%2-FLDW+1)   / Add field X offset (Starting column is 1)
-       JMS ITOA               / Get ASCII X coordinate
-       XPOS                   / Target address, argument for ITOA
-       TAD PYPOS              / Get previous Y position
-       IAC                    / Starting row is 1
-       JMS ITOA               / Get ASCII Y coordinate
-       YPOS                   / Target address, argument for ITOA
-       TAD [MOVXY-1]          / Get pointer to move string
-       JMS PUTS               / Position cursor
-       TAD PSHAPE             / Get previous shape
-       JMS DRAWS              / Clear it
+       JMS DRAWS              / Clear previous shape
+       PSHAPE                 / Argument for DRAWS, previous shape and position
        1                      / Argument for DRAWS, clear shape
 
-/
-/ Draw "newpos"
-/
-
-       TAD CXPOS              / Draw new position
-       CLL RAL                / Multiply by two (each block is double wide)
-       TAD (TERMW%2-FLDW+1)   / Add field X offset (Starting column is 1)
-       JMS ITOA               / Get ASCII X coordinate
-       XPOS                   / Target address, argument for ITOA
-       TAD CYPOS              / Get current Y position
-       IAC                    / Starting row is 1
-       JMS ITOA               / Get ASCII Y coordinate
-       YPOS                   / Target address, argument for ITOA
-       TAD [MOVXY-1]          / Get pointer to move string
-       JMS PUTS               / Position cursor
-       TAD CSHAPE             / Get current shape
-       JMS DRAWS              / Draw it
+       JMS DRAWS              / Draw current shape
+       CSHAPE                 / Argument for DRAWS, current shape and posistion
        0                      / Argument for DRAWS. Do not clear, draw.
 
        JMS MEMCPY             / Update previous positions after a move
@@ -375,6 +346,25 @@ UPDATE,
 
        DCA DOWNMV             / Reset DOWNMV boolean
        JMP MAIN               / Get next action
+
+PRVPOS,0
+       JMS MEMCPY             / Restore position, rotation, shape and size
+       PSHAPE                 / ARG for MEMCPY, copy from previous shape
+       CSHAPE                 / ARG for MEMCPY, copy to current shape
+       PSHAPE-CSHAPE          / ARG for MEMCPY, size of struct
+
+       TAD DOWNMV
+       SNA CLA                / Was this a downwards move?
+       JMP MAIN               / No, Return
+       JMS FIXSHP             / and make shape permanent in field
+       JMS ROWSCN             / Scan for full rows
+/       JMP I IFILLM           / No rows found, return / TODO only do below if necessary
+       JMS CLRROW             / Rows found, clear
+       JMS REDRAW             / TODO, just redraw cleared row
+       JMS GRVFLD             / Gravitate field
+       JMS REDRAW             / Refresh full field
+       JMS SPNSHP             / and spawn new shape
+       JMP MAIN               / Return
 
 PAGE
 
@@ -427,7 +417,7 @@ FJLOOP,
 SPNSHP,0
        JMS MEMSET             / Reset all current and previous values
        CSHAPE                 / Arg for MEMSET, starting position
-       DOWNMV+1-CSHAPE        / size of all variables including DOWNMV
+       DOWNMV+1+1-CSHAPE      / size of all variables including DOWNMV and HRDDRP
        0                      / Value to set
        NL0002                 / Add two to SHPIDX (1 to get into 1..7 range, and 1 to increment)
        TAD SHPIDX             / Get SHPIDX
@@ -558,22 +548,22 @@ LSHCOL,                       / Inner loop over columns in shape
                               / 1st. check if X is out of bounds
        TAD FIELDX             / Get X
        SPA CLA                / Check if negative
-       JMP PRVPOS             / Yes, return
+       JMP I IFILLM           / Yes, return
        TAD (-FLDW)            / Get negative width
        TAD FIELDX             / Add X
        SMA CLA                / Check if positive (FIELDX to big)
-       JMP PRVPOS             / Yes, return
+       JMP I IFILLM           / Yes, return
 
                               / 2nd. check y overflow
        TAD (-FLDH)            / Get negative width
        TAD FIELDY             / Add Y
        SMA CLA                / Check if positive (FIELDY to big)
-       JMP PRVPOS             / Yes, return
+       JMP I IFILLM           / Yes, return
 
                               / 3. check content
        TAD I FLDPOS           / Get content
        SZA CLA                / Check if it contains block
-       JMP PRVPOS             / Yes, return
+       JMP I IFILLM           / Yes, return
 
 LDCONT,                       / If we get here, there was no collision
        ISZ FLDPOS             / Move one step in the game field
@@ -594,26 +584,6 @@ LDCONT,                       / If we get here, there was no collision
        JMP LSHROW             / Go to next row
        ISZ IFILLM             / legal move, increment return address
        JMP I IFILLM           / All rows done, return to caller.
-
-PRVPOS,
-       JMS MEMCPY             / Restore position, rotation, shape and size
-       PSHAPE                 / ARG for MEMCPY, copy from previous shape
-       CSHAPE                 / ARG for MEMCPY, copy to current shape
-       PSHAPE-CSHAPE          / ARG for MEMCPY, size of struct
-
-       TAD DOWNMV
-       SNA CLA                / Was this a downwards move?
-       JMP I IFILLM           / No, Return
-       DCA HRDDRP             / Yes, Reset possible hard drop
-       JMS FIXSHP             / and make shape permanent in field
-       JMS ROWSCN             / Scan for full rows
-/       JMP I IFILLM           / No rows found, return
-       JMS CLRROW             / Rows found, clear
-       JMS REDRAW             / TODO, just redraw cleared row
-       JMS GRVFLD             / Gravitate field
-       JMS REDRAW             / Refresh full field
-       JMS SPNSHP             / and spawn new shape
-       JMP I IFILLM           / Return
 
 /
 / TODO-list:
@@ -685,14 +655,38 @@ ENDCELL,
 /
 / Draw shape, AC contains location
 /
+DSHPST,0
+DSHAPE,0
 DRAWS, 0
-       TAD (-1)
+       TAD I DRAWS            / Pointer to shape struct is first argument
+       ISZ DRAWS              / Skip first argument
+       DCA DSHPST             / Store for later use
+       TAD I DSHPST           / Shape pointer
+       DCA DSHAPE             / Store shape for later use
+       NL7777                 / Get -1 to subtract from
+       TAD DSHAPE             / Shape data pointer
        DCA AIX                / Location of shape is in AC. Store in index register
-       TAD CSHSIZ             / Get size (Todo, use argument as PSHP is drawn as well)
+
+       ISZ DSHPST             / Move forward in shape struct to:
+       TAD I DSHPST           / X position
+       CLL RAL                / Multiply by two (each block is double wide)
+       TAD (TERMW%2-FLDW+1)   / Add field X offset (Starting column is 1) / TODO argument?
+       JMS ITOA               / Get ASCII X coordinate
+       XPOS                   / Target address, argument for ITOA
+       ISZ DSHPST             / Move forward in shape struct to:
+       TAD I DSHPST           / Y position
+       IAC                    / Starting row is 1
+       JMS ITOA               / Get ASCII Y coordinate
+       YPOS                   / Target address, argument for ITOA
+       TAD [MOVXY-1]          / Get pointer to move string
+       JMS PUTS               / Position cursor
+
+       ISZ DSHPST             / Move forward in shape struct to:
+       TAD I DSHPST           / Shape size
        CIA                    / Invert for loop use
        DCA LOOPJ              / Store as outer loop index
 BROWS,
-       TAD CSHSIZ             / Get size again
+       TAD I DSHPST           / Get size again
        CIA                    / Invert for loop use
        DCA LOOPI              / Stor as inner loop index
 BCOLS,
@@ -706,7 +700,7 @@ DBLNK,
        JMS PUTS
        JMP DCONT              / Continue
 DBLCK,
-       TAD I DRAWS            / First argument, should we clear?
+       TAD I DRAWS            / Second argument, should we clear?
        SZA CLA                / Is CLEAR argument set?
        JMP DCBLCK             / Yes, should clear block
        TAD ("[)               / No, Draw block by outputing: []
@@ -724,19 +718,18 @@ DCONT,
        JMP BCOLS              / No, go to next column
        TAD ("0)               / Yes, Move back twize the size of shape
        DCA BACK
+       TAD I DSHPST           / Size in struct
+       CLL RAL                / Multiply by two
        TAD ("0)
-       TAD CSHSIZ
-       TAD CSHSIZ
        DCA BACK+1
        TAD (MOVB-1)
        JMS PUTS
        TAD (MOVD-1)
-       JMS PUTS                 / Move down
-       ISZ LOOPJ                / Increment outer loop, one row done
-       JMP BROWS                / Go to next row
-       ISZ DRAWS                / Skip over argumnet
-       NOP
-       JMP I DRAWS              / All rows done, return to caller.
+       JMS PUTS               / Move down
+       ISZ LOOPJ              / Increment outer loop, one row done
+       JMP BROWS              / Go to next row
+       ISZ DRAWS              / Skip over argumnet
+       JMP I DRAWS            / All rows done, return to caller.
 
 PAGE
 
