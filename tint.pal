@@ -313,6 +313,9 @@ RKEY,
 /
 FKEY,
        JMS REDRAW
+       JMS DRAWS
+       CSHAPE
+       0
        JMP MAIN
 /
 / Hard drop
