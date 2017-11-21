@@ -82,11 +82,13 @@ LOOPJ, 0
 
 
 TIMER1, 0                     / Main timer for gravity.
-TIMER2, -70                   / Two timers necessary for fast CPUs
+TIMER2, 0                     / Two timers necessary for fast CPUs
 HRDTIM, -1000                 / Hard drop timer
+GRVTIM, -1000                 / Gravity hang timer
 LIMIT1, 0                     / TIMER1 limit
-LIMIT2, -70                   / TIMER2 limit
+LIMIT2, 0                     / TIMER2 limit
 HRDLIM, -1000                 / Hard drop limit
+GRVLIM, -1000                 / Gravity hang limit
 
 /
 / Globally usefull routines
@@ -185,7 +187,7 @@ ITOA,   0
         TAD I ITOA            / Get the first argument
         DCA TARGET            / Store it
         ISZ ITOA              / Advance return address
-        NOP
+        NOP                   / TODO bum this
         TAD ("0)              / Get ASCII value of 0
         DCA I TARGET          / Store as initial value in target
         TAD VALUE             / Get value
@@ -196,7 +198,7 @@ LOOP10, TAD (-12)             / Remove decimal 10
         JMP LOOP10
 
 NXTDGT, ISZ TARGET            / Advance target pointer
-        NOP
+        NOP                   / TODO bum this
         TAD ("0+12)           / Get ASCII 0 + 10 since subtracted 10 below 0
         DCA I TARGET          / Store as result in target
         JMP I ITOA            / Return
@@ -230,7 +232,7 @@ INPUT, KSF                    / Test keyboard flag
        AND (37)               / Get lower bits (no "partiy" or case bits)
        DCA TEMP               / Store key for later comparison
        TAD TEMP
-       TAD (-10)              / Compare to h
+       TAD (-10)              / Compare to h / TODO improve according to BQT suggestions
        SNA CLA                / If zero, we got an 'h'
        JMP HKEY               / Go to handling of 'h'
        TAD TEMP               / If not, get keystroke again
@@ -478,7 +480,7 @@ REDRAW,0
        YPOS                   / Target address, argument for ITOA
        TAD [MOVXY-1]          / Position cursors
        JMS PUTS
-       JMS DRAWF              / Draw empty field
+       JMS DRAWF              / Draw empty field / TODO, redraw CSHAPE here ?
        JMP I REDRAW
 
 
@@ -611,11 +613,11 @@ DRAWF, 0
        DCA AIX                / Store in auto index register
 /      TAD (FLDH-2)           / TODO Loop over visible rows
        TAD (FLDH)             / Get field height
-       CIA                    / Invert for loop
+       CIA                    / Invert for loop / TODO bum this
        DCA LOOPI              / Put in outer loop variable
 ROWS,
        TAD (FLDW)             / Get field width
-       CIA                    / Invert for loop
+       CIA                    / Invert for loop / TODO bum this
        DCA LOOPJ              / Put in inner loop variable
        TAD ("<)               / Start by outputing <!
        JMS PUTC
