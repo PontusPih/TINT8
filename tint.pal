@@ -1,5 +1,60 @@
 / TINT Is Not T***** in PALbart assembly
 
+/ Page layout
+
+/ Page no. 0
+/  Storage of global variable such as shape structures, timer limits,
+/  shape pointers, loop variables and game state.
+/
+/  Funtions: MEMSET, MEMCPY, PUTC, PUTS, ITOA
+
+/ Page no. 2
+/  Input handling with delay loops and hard drop loop.
+
+
+/ Page no. 3
+/  Game logic, check if input results in legal move, check for full
+/  rows and remove, spawn the next piece.
+/
+/  Functions: UPDATE
+
+/ Page no. 4
+/  Functions to make a stuck piece permanent, spawn a new piece,
+/  initialize game, redraw the playing field
+/
+/  Functions: FIXPOS, SPNSHP, INIT, REDRAW
+
+/ Page no. 5
+/  Check if piece collides with playing field or move is illegal.
+/
+/  Functions: IFILLM, CALCPO
+
+/ Page no. 6
+/  Drawing of playing field and shapes
+/
+/  Functions: DRAWF, DRAWS
+
+/ Page no. 7
+/  Dection and removal of full rows, and gravitation
+/
+/  Functions: ROWSCN, CLRROW, GRVFLD
+
+/ Page no. 8
+/  Memory move helper routine for gravitation.
+/
+/  Functions: MEMMVR
+
+/ Page no. 9
+/  Shape data, each rotation of the basic shapes stored individually
+
+/ Page no. 10
+/  Output routines for strings and terminal control.
+/
+/  Functions: PUTPS, MOVXY, MOVY, MOVD, MOVF, MOVB, ERASE
+
+/ Page no. 11
+/  Space for playing field.
+
 /
 / Global symbols
 /
@@ -202,6 +257,8 @@ NXTDGT, ISZ TARGET            / Advance target pointer
         TAD ("0+12)           / Get ASCII 0 + 10 since subtracted 10 below 0
         DCA I TARGET          / Store as result in target
         JMP I ITOA            / Return
+
+PAGE
 
 /
 / Main loop.
@@ -483,20 +540,6 @@ REDRAW,0
        JMS DRAWF              / Draw empty field / TODO, redraw CSHAPE here ?
        JMP I REDRAW
 
-
-/
-/ Do one of:
-/
-
-
-/
-/ 2. Perform drop to bottom
-/
-
-/
-/ 4. Perform normal drop
-/
-
 PAGE
 
 /
@@ -590,6 +633,8 @@ LDCONT,                       / If we get here, there was no collision
        ISZ IFILLM             / legal move, increment return address
        JMP I IFILLM           / All rows done, return to caller.
 
+PAGE
+
 /
 / TODO-list:
 /
@@ -599,13 +644,12 @@ LDCONT,                       / If we get here, there was no collision
 /
 
 /
-/ Calculate hat of seven
+/ Calculate bag of seven
 /
 
 /
 / Draw field
 /
-PAGE
 DRAWF, 0
        CLA
 /      TAD (FIELDP-01+FLDW+FLDW)   / TODO Skip two invisible top lines
@@ -917,7 +961,14 @@ MRLOOP,
        JMP I MEMMVR           / Yes, Return
 
 PAGE
+
 / TODO save space by storing shape data as bit fields
+
+/ Each shape is represented by one word, with the width/height of the
+/ bounding square, followed by a list of pointers to each rotation of
+/ the shape represented as a pattern in memory. The list is then
+/ followed by the shape data.
+
 SHAPEL,3;SHAL0;SHAL1;SHAL2;SHAL3
 
 SHAL0,   0;0;1
@@ -1158,7 +1209,6 @@ PAGE
 /
 / Reserve space for game field
 /
-       PAGE
 FIELDP, ZBLOCK FLDS
 /       *FIELDP+FLDS
 FLDEND, HLT
