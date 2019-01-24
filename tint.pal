@@ -1203,3 +1203,45 @@ FIELDP, ZBLOCK FLDS
 /       *FIELDP+FLDS
 FLDEND, HLT
 $
+
+
+/ Text from original:
+/ 
+/ wa{e imq?
+/ imq        urowenx  s~et
+/ 
+/ 
+/ t e t r i s
+/ wa{ urowenx? (0-9) -
+/ @ap-
+/ polnyh strok:
+/ urowenx:
+/   s~et:
+/   <! . . . . . . . . . .!>
+/   <!====================!>
+/     \/\/\/\/\/\/\/\/\/\/
+/     7: nalewo   9: naprawo
+/          8:poworot
+/ 	 4:uskoritx  5:sbrositx
+/ 	 1: pokazatx  sledu`}u`
+/ 	 0:  steretx |tot tekst
+/ 	   probel - sbrositx
+/ 	   e}e parti`? (da/net) -
+/
+
+/ Transcribed and translated
+/ baW urowen           == Your level
+/ polnyh strok         == Full lines
+/ urowen               == level
+/ C4ET                 == score
+/ nalewo               == left
+/ naprawo              == right
+/ poworot              == turn/rotate
+/ uskorit              == speed up
+/ sbrositx             == reset
+/ pokazatx sleduIOwuIO == show next
+/ steret 3tot tekct    == erase this text
+/ probel sbrositx      == space is reset
+/ wawe imq             == your name
+/ imq urowenx c4et     == name level score
+/ ewe partiIO (da/net) == new game (yes/no)
