@@ -1,5 +1,12 @@
 / TINT Is Not T***** in PALbart assembly
 
+/ TODO-list:
+/ . Draw empty line before gravity
+/ . Titlescreen
+/ . Wallkick translation
+/ . Permute shapelist when SHPIDX wraps to get "bag of seven" behaviour
+/ . Save space by storing shape data as bit fields
+
 / Page layout
 
 / Page no. 0
@@ -472,9 +479,6 @@ FJLOOP,
 / SPNSHP, spawns new shape by resetting current shape structure and
 / getting the next shape in the global shape list.
 /
-/ TODO, permute shapelist when SHPIDX wraps to get "bag of seven"
-/ behaviour.
-/
 
 SPNSHP,0
        JMS MEMSET             / Reset all current and previous values
@@ -634,18 +638,6 @@ LDCONT,                       / If we get here, there was no collision
        JMP I IFILLM           / All rows done, return to caller.
 
 PAGE
-
-/
-/ TODO-list:
-/
-
-/
-/ Wallkick translation
-/
-
-/
-/ Calculate bag of seven
-/
 
 /
 / Draw field
@@ -961,8 +953,6 @@ MRLOOP,
        JMP I MEMMVR           / Yes, Return
 
 PAGE
-
-/ TODO save space by storing shape data as bit fields
 
 / Each shape is represented by one word, with the width/height of the
 / bounding square, followed by a list of pointers to each rotation of
