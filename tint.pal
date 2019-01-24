@@ -1101,29 +1101,31 @@ PAGE
 /
 / TODO allow escaping to Upper/Lower case only
 PUTPS,  0
-        DCA AIY
+        NL7777                / Load -1 in AC
+        TAD I PUTPS           / Add string pointer
+        DCA AIY               / and put in auto index register
 PSLOOP,
         TAD I AIY             / Load first word
-        DCA TEMP               / Stash word
+        DCA TEMP              / Stash word
         TAD TEMP
         BSW                   / Move first half down
         AND (077)
-        JMS PUTB              / Unpack one byte
-        TAD TEMP               / Get next byte
+        JMS PUTB              / Unpack first byte
+        TAD TEMP              / Get next byte
         AND (077)
-        JMS PUTB
+        JMS PUTB              / Unpack next byte
         JMP PSLOOP
 PUTB,   0
-        SNA
-        JMP I PUTPS           / Null byte, return
-        DCA TEMP2              / Stash byte
+        SNA                   / Is character null?
+        JMP I PUTPS           / Yes, end of string, return
+        DCA TEMP2             / No, stash byte
         TAD TEMP2
-        AND (037)             / Check if space char (five zero bits)
-        SZA
-        JMP NOSPC
-        TAD (040)             / Set space bit otherwise we output `
+        AND (037)             / Mask out space bit (lower five)
+        SZA                   / Is space bits all zero?
+        JMP NOTSPC            / No, print out non-space char
+        TAD (040)             / Yes, set space bit otherwise we output `
         JMP ISSPC             / TODO check for actual space, now we miss @
-NOSPC,
+NOTSPC,
         CLA
         /TAD TEMP2 / For uppercase version
         /AND (40)
