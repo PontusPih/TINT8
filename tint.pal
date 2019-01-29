@@ -6,6 +6,9 @@
 / . Wallkick translation
 / . Permute shapelist when SHPIDX wraps to get "bag of seven" behaviour
 / . Save space by storing shape data as bit fields
+/ . Calculate score
+/ . Store hi-scores
+/ . Use regular arguments for PUTS, PUTC and ITOA
 
 / Page layout
 
@@ -29,7 +32,7 @@
 /  Functions to make a stuck piece permanent, spawn a new piece,
 /  initialize game, redraw the playing field
 /
-/  Functions: FIXPOS, SPNSHP, INIT, REDRAW
+/  Functions: FIXPOS, SPNSHP, INIT, REDRAW TODO BEFORE COMMIT
 
 / Page no. 5
 /  Check if piece collides with playing field or move is illegal.
@@ -71,6 +74,7 @@
        SPACE=040
        LF=012
        CR=015
+       BS=010
        BRA=133
 
 / Autoindex locations
@@ -510,6 +514,47 @@ SPNSHP,0
 /
 
 INIT,  0
+       TAD (40)
+       JMS ITOA
+       XPOS
+       TAD (20)
+       JMS ITOA
+       YPOS
+       TAD [MOVXY-1]
+       JMS PUTS
+       JMS PUTPS
+       TBLOCK
+       JMS PUTPS
+       TINT
+       JMS PUTPS
+       TBLOCK
+       TAD (LEVEL-1)
+       JMS PUTS
+RLVL,  CLA
+       KSF
+       JMP RLVL
+       KRB
+       DCA TEMP
+       TAD TEMP
+       TAD (200)
+       TAD (-"0)
+       SPA
+       JMP RLVL
+       TAD (-11)
+       SMA SZA
+       JMP RLVL
+       TAD ("0+11)
+       JMS PUTC
+RENTER,CLA
+       KSF
+       JMP RENTER
+       KRB
+       TAD (-BS)
+       SNA
+       JMP INIT
+       TAD (BS-CR)
+       SZA
+       JMP RENTER
        JMS MEMSET             / Reset game field
        FIELDP                 / Arg for MEMSET, pointer to field
        FLDS                   / Arg for MEMSET, field size
@@ -517,6 +562,8 @@ INIT,  0
        JMS REDRAW             / Draw field
        JMS SPNSHP             / Spawn a new shape
        JMP I INIT             / Return
+
+PAGE / TODO renumber page layout
 
 /
 / REDRAW, clear screen and redraw field
@@ -662,7 +709,7 @@ ISBLCK,
        JMS PUTC
        JMP ENDCELL            / This cell is done
 ISBLNK,
-       TAD (".)               / Draw blank: ..
+       TAD (".)               / Draw blank: .. / TODO, try " ."
        JMS PUTC
        TAD (".)
        JMS PUTC
@@ -683,7 +730,7 @@ ENDCELL,
        JMS PUTS
        ISZ LOOPI              / Is all rows done?
        JMP ROWS               / No, do next row
-       JMP I DRAWF            / Yes, return
+       JMP I DRAWF            / Yes, return / TODO draw bottom "=="
 
 /
 / Draw shape, AC contains location
@@ -1187,6 +1234,11 @@ ERASE,  ESC
         "2
         "J
         0
+
+TBLOCK,TEXT "[][]"
+TINT,  TEXT " TINT "
+LEVEL, ASCII "lol (0-9)?"
+       0 / String terminator
 
 PAGE
 
