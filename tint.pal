@@ -293,39 +293,31 @@ TCONT, ISZ TIMER1             / Has drop delay timed out?
 INPUT, KSF                    / Test keyboard flag
        JMP MAIN               / Main event loop
        KRB                    / Read keystroke
-       AND (37)               / Get lower bits (no "partiy" or case bits)
-       DCA TEMP               / Store key for later comparison
-       TAD TEMP
-       TAD (-10)              / Compare to h / TODO improve according to BQT suggestions
-       SNA CLA                / If zero, we got an 'h'
-       JMP HKEY               / Go to handling of 'h'
-       TAD TEMP               / If not, get keystroke again
-       TAD (-12)              / Compare to j
-       SNA CLA
-       JMP JKEY
-       TAD TEMP
-       TAD (-13)              / Compare to k
-       SNA CLA
-       JMP KKEY
-       TAD TEMP
-       TAD (-14)              / Compare to l
-       SNA CLA
-       JMP LKEY
-       TAD TEMP
-       TAD (-21)              / Compare to q
-       SNA CLA
-       HLT
-       TAD TEMP
-       TAD (-22)              / Compare to r
-       SNA CLA
-       JMP RKEY
-       TAD TEMP
-       TAD (-6)               / Compare to f
-       SNA CLA
+       AND (137)              / Get lower bits (mask out case bit)
+       SNA                    / If zero, we got NUL or SPACE
+       JMP SPCKEY             / Go to space handling
+       TAD (200)              / Add parity bit, since the PALBART chars have it
+       TAD (-"F)              / Compare to f
+       SNA
        JMP FKEY
-       TAD TEMP
-       SNA CLA                / Compare to space (zero)
-       JMP SPCKEY
+       TAD ("F-"H)            / Compare to h
+       SNA                    / If zero, we got an 'h'
+       JMP HKEY               / Go to handling of 'h'
+       TAD ("H-"J)            / Compare to j
+       SNA
+       JMP JKEY
+       TAD ("J-"K)            / Compare to k
+       SNA
+       JMP KKEY
+       TAD ("K-"L)            / Compare to l
+       SNA
+       JMP LKEY
+       TAD ("L-"Q)            / Compare to q
+       SNA
+       HLT
+       TAD ("Q-"R)            / Compare to r
+       SNA
+       JMP RKEY
        JMP MAIN               / Unused key, return to input loop
 /
 / Move left
