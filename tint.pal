@@ -8,7 +8,8 @@
 / . Save space by storing shape data as bit fields
 / . Calculate score
 / . Store hi-scores
-/ . Use regular arguments for PUTS, PUTC and ITOA
+/ . Use regular arguments for PUTC and ITOA
+/ . Detect game over
 
 / Page layout
 
@@ -102,6 +103,10 @@
 / block is spawned.
 /
 
+LEVEL, 0
+NLINES,0
+SCORE, 0
+
 CSHAPE,SHAL0                  / Current shape, init to first rotation of L
 CXPOS, 0                      / Current X,Y Position
 CYPOS, 0
@@ -152,7 +157,7 @@ TIMER2, 0                     / Two timers necessary for fast CPUs
 HRDTIM, -1000                 / Hard drop timer
 GRVTIM, -1000                 / Gravity hang timer
 LIMIT1, 0                     / TIMER1 limit
-LIMIT2, 0                     / TIMER2 limit
+LIMIT2, 6500                  / TIMER2 limit
 HRDLIM, -1000                 / Hard drop limit
 GRVLIM, -1000                 / Gravity hang limit
 
@@ -229,10 +234,13 @@ PUTC,  0
        JMP I PUTC             / Return
 
 /
-/ Output null terminated string, one char per word. AC is loc-1
+/ Output null terminated string, one char per word. AC is loc
 /
 
 PUTS,   0
+        NL7777                / Load -1 to decrement loc
+        TAD I PUTS            / Load argument
+        ISZ PUTS              / Set up return address
         DCA AIY               / Set up autoindex register
 PLOOP,
         TAD I AIY             / Get next char
@@ -509,27 +517,33 @@ SPNSHP,0
        LIMIT1-TIMER1          / ARG for MEMCPY, number of timers
        JMP I SPNSHP
 
+PAGE
+
 /
 / Init
 /
 
 INIT,  0
-       TAD (40)
-       JMS ITOA
-       XPOS
-       TAD (20)
-       JMS ITOA
-       YPOS
-       TAD [MOVXY-1]
        JMS PUTS
+       ERASE
+       JMS MOVXY
+       40
+       13
        JMS PUTPS
        TBLOCK
+       JMS PUTS
+       MOVD
        JMS PUTPS
        TINT
+       JMS PUTS
+       MOVD
        JMS PUTPS
        TBLOCK
-       TAD (LEVEL-1)
+       JMS MOVXY
+       34
+       26
        JMS PUTS
+       SLEVEL
 RLVL,  CLA
        KSF
        JMP RLVL
@@ -543,15 +557,23 @@ RLVL,  CLA
        TAD (-11)
        SMA SZA
        JMP RLVL
-       TAD ("0+11)
+       TAD (11)
+       DCA LEVEL
+       TAD LEVEL
+       TAD ("0)
        JMS PUTC
+       TAD LEVEL
+       BSW
+       TAD (6600)
+       DCA LIMIT2
+       
 RENTER,CLA
        KSF
        JMP RENTER
        KRB
        TAD (-BS)
        SNA
-       JMP INIT
+       JMP INIT               / TODO, really redraw here?
        TAD (BS-CR)
        SZA
        JMP RENTER
@@ -570,16 +592,11 @@ PAGE / TODO renumber page layout
 /
 
 REDRAW,0
-       TAD (ERASE-1)          / Load erase escape sequence
-       JMS PUTS               / Output to terminal
-       TAD (TERMW%2-FLDW-2+1) / Starting XPOS is middle of terminal (Start column is 1)
-       JMS ITOA               / Get ASCII coordinate
-       XPOS                   / Target address, argument for ITOA
-       CLA IAC                / Start row is 1
-       JMS ITOA               / Get ASCII Y coordinate
-       YPOS                   / Target address, argument for ITOA
-       TAD [MOVXY-1]          / Position cursors
-       JMS PUTS
+       JMS PUTS               / Output
+       ERASE                  / Erase escape sequence to terminal
+       JMS MOVXY
+       TERMW%2-FLDW-2+1       / Starting XPOS is middle of terminal (Start column is 1)
+       1                      / Start row is 1
        JMS DRAWF              / Draw empty field / TODO, redraw CSHAPE here ?
        JMP I REDRAW
 
@@ -720,14 +737,14 @@ ENDCELL,
        JMS PUTC
        TAD (">)
        JMS PUTC
-       TAD (MOVD-1)           / And move cursor down one step
-       JMS PUTS
+       JMS PUTS               / And move cursor down one step
+       MOVD
        TAD ("2)               / Move back 24 (2*width). TODO do this once
        DCA BACK
        TAD ("4)
        DCA BACK+1
-       TAD (MOVB-1)
        JMS PUTS
+       MOVB
        ISZ LOOPI              / Is all rows done?
        JMP ROWS               / No, do next row
        JMP I DRAWF            / Yes, return / TODO draw bottom "=="
@@ -751,15 +768,14 @@ DRAWS, 0
        TAD I DSHPST           / X position
        CLL RAL                / Multiply by two (each block is double wide)
        TAD (TERMW%2-FLDW+1)   / Add field X offset (Starting column is 1) / TODO argument?
-       JMS ITOA               / Get ASCII X coordinate
-       XPOS                   / Target address, argument for ITOA
+       DCA DRAPOS             / Set X argument to MOVXY
        ISZ DSHPST             / Move forward in shape struct to:
        TAD I DSHPST           / Y position
        IAC                    / Starting row is 1
-       JMS ITOA               / Get ASCII Y coordinate
-       YPOS                   / Target address, argument for ITOA
-       TAD [MOVXY-1]          / Get pointer to move string
-       JMS PUTS               / Position cursor
+       DCA DRAPOS+1           / Set Y argument to MOVXY
+       JMS MOVXY              / Position cursor
+DRAPOS,0
+       0
 
        ISZ DSHPST             / Move forward in shape struct to:
        TAD I DSHPST           / Shape size
@@ -774,10 +790,10 @@ BCOLS,
        SZA CLA                / Is shape data set?
        JMP DBLCK              / Yes, Draw block
 DBLNK,
-       TAD (MOVF-1)           / No, move cursor to "draw" transparent block
+       JMS PUTS               / No, move cursor to "draw" transparent block
+       MOVF
        JMS PUTS
-       TAD (MOVF-1)
-       JMS PUTS
+       MOVF
        JMP DCONT              / Continue
 DBLCK,
        TAD I DRAWS            / Second argument, should we clear?
@@ -802,10 +818,10 @@ DCONT,
        CLL RAL                / Multiply by two
        TAD ("0)
        DCA BACK+1
-       TAD (MOVB-1)
        JMS PUTS
-       TAD (MOVD-1)
+       MOVB
        JMS PUTS               / Move down
+       MOVD
        ISZ LOOPJ              / Increment outer loop, one row done
        JMP BROWS              / Go to next row
        ISZ DRAWS              / Skip over argumnet
@@ -1142,6 +1158,7 @@ PAGE
 PUTPS,  0
         NL7777                / Load -1 in AC
         TAD I PUTPS           / Add string pointer
+        ISZ PUTPS             / Setup return address
         DCA AIY               / and put in auto index register
 PSLOOP,
         TAD I AIY             / Load first word
@@ -1178,15 +1195,27 @@ ISSPC,
 /
 / Move to X,Y
 /
-MOVXY,  ESC
-        BRA  / [
-YPOS,   0
-        0
-        073  / ;
-XPOS,   0
-        0
-        0110 / H
-        0
+MOVXY, 0
+       TAD I MOVXY
+       JMS ITOA
+       XPOS
+       ISZ MOVXY
+       TAD I MOVXY
+       JMS ITOA
+       YPOS
+       ISZ MOVXY
+       JMS PUTS
+       MOVSTR
+       JMP I MOVXY
+MOVSTR,ESC
+       BRA  / [
+YPOS,  0
+       0
+       073  / ;
+XPOS,  0
+       0
+       0110 / H
+       0
 
 /
 / Move up
@@ -1236,8 +1265,8 @@ ERASE,  ESC
         0
 
 TBLOCK,TEXT "[][]"
-TINT,  TEXT " TINT "
-LEVEL, ASCII "lol (0-9)?"
+TINT,  TEXT "TINT"
+SLEVEL, ASCII "Starting level (0-9)?"
        0 / String terminator
 
 PAGE
