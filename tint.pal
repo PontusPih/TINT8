@@ -435,8 +435,8 @@ PRVPOS,0
        JMS CLRROW             / Rows found, clear
        JMS REDRAW             / TODO, just redraw cleared row
        JMS GRVFLD             / Gravitate field
-       JMS REDRAW             / Refresh full field
        JMS SPNSHP             / and spawn new shape
+       JMS REDRAW             / Refresh full field
        JMP MAIN               / Return
 
 PAGE
@@ -581,8 +581,8 @@ RENTER,CLA
        FIELDP                 / Arg for MEMSET, pointer to field
        FLDS                   / Arg for MEMSET, field size
        0                      / Arg for MEMSET, value to set
-       JMS REDRAW             / Draw field
        JMS SPNSHP             / Spawn a new shape
+       JMS REDRAW             / Draw field
        JMP I INIT             / Return
 
 PAGE / TODO renumber page layout
@@ -597,7 +597,10 @@ REDRAW,0
        JMS MOVXY
        TERMW%2-FLDW-2+1       / Starting XPOS is middle of terminal (Start column is 1)
        1                      / Start row is 1
-       JMS DRAWF              / Draw empty field / TODO, redraw CSHAPE here ?
+       JMS DRAWF              / Draw empty field
+       JMS DRAWS              / Redraw current shape
+       CSHAPE
+       0
        JMP I REDRAW
 
 PAGE
@@ -750,7 +753,7 @@ ENDCELL,
        JMP I DRAWF            / Yes, return / TODO draw bottom "=="
 
 /
-/ Draw shape, AC contains location
+/ Draw shape
 /
 DSHPST,0
 DSHAPE,0
