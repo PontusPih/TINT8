@@ -90,6 +90,7 @@
       TERMW=0120              / Terminal width
       NL0002=CLA CLL CML RTL  / Microcoded "2"
       NL7777=CLA CMA          / Microcoded "7777" or "-1"
+      NL7776=CLA CMA CLL RAL  / Microcoded "7776" or "-2"
 
 /
 / Page zero global variables
@@ -607,7 +608,7 @@ REDRAW,0
        ERASE                  / Erase escape sequence to terminal
        JMS MOVXY
        TERMW%2-FLDW-2+1       / Starting XPOS is middle of terminal (Start column is 1)
-       1                      / Start row is 1
+       3                      / Start row is 3
        JMS DRAWF              / Draw empty field
        JMS DRAWS              / Redraw current shape
        CSHAPE
@@ -714,11 +715,11 @@ PAGE
 /
 DRAWF, 0
        CLA
-/      TAD (FIELDP-01+FLDW+FLDW)   / TODO Skip two invisible top lines
-       TAD (FIELDP-1)         / Get field pointer -1
+       TAD (FIELDP-01+FLDW+FLDW)   / TODO Skip two invisible top lines
+/       TAD (FIELDP-1)         / Get field pointer -1
        DCA AIX                / Store in auto index register
-/      TAD (FLDH-2)           / TODO Loop over visible rows
-       TAD (FLDH)             / Get field height
+       TAD (FLDH-2)           / TODO Loop over visible rows
+/       TAD (FLDH)             / Get field height
        CIA                    / Invert for loop / TODO bum this
        DCA LOOPI              / Put in outer loop variable
 ROWS,
@@ -767,15 +768,12 @@ ENDCELL,
 / Draw shape
 /
 DSHPST,0
-DSHAPE,0
 DRAWS, 0
        TAD I DRAWS            / Pointer to shape struct is first argument
        ISZ DRAWS              / Skip first argument
        DCA DSHPST             / Store for later use
-       TAD I DSHPST           / Shape pointer
-       DCA DSHAPE             / Store shape for later use
        NL7777                 / Get -1 to subtract from
-       TAD DSHAPE             / Shape data pointer
+       TAD I DSHPST           / Shape pointer
        DCA AIX                / Location of shape is in AC. Store in index register
 
        ISZ DSHPST             / Move forward in shape struct to:
@@ -798,17 +796,16 @@ DRAPOS,0
 BROWS,
        TAD I DSHPST           / Get size again
        CIA                    / Invert for loop use
-       DCA LOOPI              / Stor as inner loop index
+       DCA LOOPI              / Store as inner loop index
 BCOLS,
        TAD I AIX              / Walk through shape data
-       SZA CLA                / Is shape data set?
-       JMP DBLCK              / Yes, Draw block
-DBLNK,
-       JMS PUTS               / No, move cursor to "draw" transparent block
-       MOVF
-       JMS PUTS
-       MOVF
-       JMP DCONT              / Continue
+       SNA CLA                / Is shape data set?
+       JMP DBLNK              / No, "draw" a transparent block
+       NL7776                 / Get -2
+       TAD DRAPOS+1           / Add current Y position
+       SPA SNA CLA            / If Y position is 1 or 2, "draw" a transparent block
+                              / This will skip first two lines above skyline
+       JMP DBLNK
 DBLCK,
        TAD I DRAWS            / Second argument, should we clear?
        SZA CLA                / Is CLEAR argument set?
@@ -818,6 +815,12 @@ DBLCK,
        TAD ("])
        JMS PUTC
        JMP DCONT              / Continue
+DBLNK,
+       JMS PUTS               / Move cursor to "draw" transparent block
+       MOVF
+       JMS PUTS
+       MOVF
+       JMP DCONT              / Continue
 DCBLCK,
        TAD (SPACE)            / Clear block by outputing: ' .'
        JMS PUTC
@@ -826,7 +829,8 @@ DCBLCK,
 DCONT,
        ISZ LOOPI              / Is row done?
        JMP BCOLS              / No, go to next column
-       TAD ("0)               / Yes, Move back twize the size of shape
+       ISZ DRAPOS+1           / Yes, update Y position
+       TAD ("0)               / Move back twize the size of shape
        DCA BACK
        TAD I DSHPST           / Size in struct
        CLL RAL                / Multiply by two
