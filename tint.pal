@@ -429,6 +429,9 @@ PRVPOS,0
        TAD DOWNMV
        SNA CLA                / Was this a downwards move?
        JMP MAIN               / No, Return
+       TAD CYPOS              / Get current Y position
+       SNA CLA                / Is shape at top position
+       JMP GAMOVR             / Unable to move down from top line, game over!
        JMS FIXSHP             / and make shape permanent in field
        JMS ROWSCN             / Scan for full rows
 /       JMP I IFILLM           / No rows found, return / TODO only do below if necessary
@@ -437,6 +440,8 @@ PRVPOS,0
        JMS GRVFLD             / Gravitate field
        JMS SPNSHP             / and spawn new shape
        JMS REDRAW             / Refresh full field
+       JMS IFILLM             / Check for Block Out (starting cells are blocked)
+       JMP GAMOVR             / Yes, game over!
        JMP MAIN               / Return
 
 PAGE
@@ -520,9 +525,15 @@ SPNSHP,0
 PAGE
 
 /
+/ Game Over
+/
+GAMOVR,0
+       JMS INIT
+       JMP MAIN
+
+/
 / Init
 /
-
 INIT,  0
        JMS PUTS
        ERASE
