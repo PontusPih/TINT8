@@ -740,7 +740,7 @@ ISBLCK,
        JMS PUTC
        JMP ENDCELL            / This cell is done
 ISBLNK,
-       TAD (".)               / Draw blank: .. / TODO, try " ."
+       TAD (SPACE)            / Draw blank: .. / TODO, try " ."
        JMS PUTC
        TAD (".)
        JMS PUTC
@@ -819,7 +819,7 @@ DBLCK,
        JMS PUTC
        JMP DCONT              / Continue
 DCBLCK,
-       TAD (".)               / Clear block by outputing two dots
+       TAD (SPACE)            / Clear block by outputing: ' .'
        JMS PUTC
        TAD (".)
        JMS PUTC
