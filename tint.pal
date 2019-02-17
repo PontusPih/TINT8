@@ -1,15 +1,15 @@
 / TINT Is Not T***** in PALbart assembly
 
 / TODO-list:
-/ . Draw empty line before gravity
-/ . Titlescreen
 / . Wallkick translation
 / . Permute shapelist when SHPIDX wraps to get "bag of seven" behaviour
 / . Save space by storing shape data as bit fields
 / . Calculate score
 / . Store hi-scores
 / . Use regular arguments for PUTC and ITOA
-/ . Detect game over
+/ . Nice game over screen
+/ . Next piece display
+/ . Write comments and update page layout
 
 / Page layout
 
@@ -25,46 +25,56 @@
 
 / Page no. 3
 /  Game logic, check if input results in legal move, check for full
-/  rows and remove, spawn the next piece.
+/  rows and remove, spawn the next piece. Also helper function for
+/  time delay.
 /
-/  Functions: UPDATE
+/  Functions: UPDATE, DELAY
 
 / Page no. 4
-/  Functions to make a stuck piece permanent, spawn a new piece,
-/  initialize game, redraw the playing field
+/  Functions to make a stuck piece permanent and spawn a new piece.
 /
-/  Functions: FIXPOS, SPNSHP, INIT, REDRAW TODO BEFORE COMMIT
+/  Functions: FIXSHP, SPNSHP
 
 / Page no. 5
+/  Game initialization and  game over handling.
+/
+/  Functions: GAMOVR, INIT
+
+/ Page no. 6
+/  Drawning of main screen.
+/
+/  Functions: REDRAW
+
+/ Page no. 7
 /  Check if piece collides with playing field or move is illegal.
 /
 /  Functions: IFILLM, CALCPO
 
-/ Page no. 6
+/ Page no. 8
 /  Drawing of playing field and shapes
 /
 /  Functions: DRAWF, DRAWS
 
-/ Page no. 7
-/  Dection and removal of full rows, and gravitation
+/ Page no. 9
+/  Detection and removal of full rows, and gravitation
 /
 /  Functions: ROWSCN, CLRROW, GRVFLD
 
-/ Page no. 8
+/ Page no. 10
 /  Memory move helper routine for gravitation.
 /
 /  Functions: MEMMVR
 
-/ Page no. 9
+/ Page no. 11, 12, 13
 /  Shape data, each rotation of the basic shapes stored individually
 
-/ Page no. 10
+/ Page no. 14
 /  Output routines for strings and terminal control.
 /
 /  Functions: PUTPS, MOVXY, MOVY, MOVD, MOVF, MOVB, ERASE
 
-/ Page no. 11
-/  Space for playing field.
+/ Page no 14 ->
+/  Strings and space for playing field.
 
 /
 / Global symbols
@@ -463,7 +473,7 @@ DELAY2,CLA IAC
 PAGE
 
 /
-/ FIXPOS, make the current shape permanent at the current position in
+/ FIXSHP, make the current shape permanent at the current position in
 / the game field.
 /
 
@@ -612,7 +622,7 @@ RENTER,CLA
        JMS REDRAW             / Draw field
        JMP I INIT             / Return
 
-PAGE / TODO renumber page layout
+PAGE
 
 /
 / REDRAW, clear screen and redraw field
@@ -771,7 +781,7 @@ ISBLCK,
        JMS PUTC
        JMP ENDCELL            / This cell is done
 ISBLNK,
-       TAD (SPACE)            / Draw blank: .. / TODO, try " ."
+       TAD (SPACE)            / Draw blank: ' .'
        JMS PUTC
        TAD (".)
        JMS PUTC
@@ -809,7 +819,7 @@ DRAWS, 0
        ISZ DSHPST             / Move forward in shape struct to:
        TAD I DSHPST           / X position
        CLL RAL                / Multiply by two (each block is double wide)
-       TAD (TERMW%2-FLDW+1)   / Add field X offset (Starting column is 1) / TODO argument?
+       TAD (TERMW%2-FLDW+1)   / Add field X offset (Starting column is 1)
        DCA DRAPOS             / Set X argument to MOVXY
        ISZ DSHPST             / Move forward in shape struct to:
        TAD I DSHPST           / Y position
@@ -909,7 +919,7 @@ ROWSCN,0
        CIA                    / Negate for loop
        DCA LOOPI              / Put in outer loop variable
        DCA DELROW             / Initialize list with null pointer
-       TAD (DELROW-1)         / Get pointer to deleter row list
+       TAD (DELROW-1)         / Get pointer to delete row list
        DCA AIX                / Initialize auto index register
 
 RLOOPI,
@@ -975,7 +985,7 @@ GRVPOS,0
 GRVNXT,0
 GRVSIZ,0
 GRVFLD,0
-       TAD (DELROW)           / Get pointer to list of deleted rows / TODO as argument
+       TAD (DELROW)           / Get pointer to list of deleted rows
        DCA GRVPOS             / Store for loop
 GILOOP,
        TAD I GRVPOS           / Get next row pointer
