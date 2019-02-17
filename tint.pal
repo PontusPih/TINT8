@@ -749,16 +749,12 @@ DRAWF, 0
        JMS MOVXY
        TERMW%2-FLDW-2+1       / Starting XPOS is middle of terminal (Start column is 1)
        3                      / Start row is 3
-       TAD (FIELDP-01+FLDW+FLDW)   / TODO Skip two invisible top lines
-/       TAD (FIELDP-1)         / Get field pointer -1
+       TAD (FIELDP-01+FLDW+FLDW) / Skip two invisible top lines
        DCA AIX                / Store in auto index register
-       TAD (FLDH-2)           / TODO Loop over visible rows
-/       TAD (FLDH)             / Get field height
-       CIA                    / Invert for loop / TODO bum this
+       TAD (-FLDH+2)          / Get number of visible rows
        DCA LOOPI              / Put in outer loop variable
 ROWS,
-       TAD (FLDW)             / Get field width
-       CIA                    / Invert for loop / TODO bum this
+       TAD (-FLDW)            / Get field width
        DCA LOOPJ              / Put in inner loop variable
        TAD ("<)               / Start by outputing <!
        JMS PUTC
