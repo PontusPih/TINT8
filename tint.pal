@@ -432,15 +432,33 @@ PRVPOS,0
        JMP GAMOVR             / Unable to move down from top line, game over!
        JMS FIXSHP             / and make shape permanent in field
        JMS ROWSCN             / Scan for full rows
-/       JMP I IFILLM           / No rows found, return / TODO only do below if necessary
+       JMP NOROWS             / No full rows found
        JMS CLRROW             / Rows found, clear
        JMS DRAWF              / Redraw field
+       JMS DELAY              / Delay for x*4096 ISZ
+       377
        JMS GRVFLD             / Gravitate field
+NOROWS,
        JMS SPNSHP             / and spawn new shape
        JMS REDRAW             / Refresh full field
        JMS IFILLM             / Check for Block Out (starting cells are blocked)
        JMP GAMOVR             / Yes, game over!
        JMP MAIN               / Return
+
+DECNT1,0
+DECNT2,0
+DELAY, 0
+       TAD I DELAY
+       CIA
+       DCA DECNT2
+       ISZ DELAY
+DELAY2,CLA IAC
+       DCA DECNT1
+       ISZ DECNT1
+       JMP .-1
+       ISZ DECNT2
+       JMP DELAY2
+       JMP I DELAY
 
 PAGE
 
@@ -910,10 +928,10 @@ ROWCNT,
 
 ROWEND,
        DCA I AIX              / Put a null terminator DELROW list
-/       TAD DELROW             / Get first deleted row
-/       SZA CLA                / Was at least one row deleted?
-/       ISZ ROWSCN             / Yes, skip instruction at return address
-       JMP I ROWSCN
+       TAD DELROW             / Get pointer to first possible deleted row
+       SZA CLA                / Was any full rows detected?
+       ISZ ROWSCN             / Yes, skip instruction at return address
+       JMP I ROWSCN           / Return
 
 /
 / CLRROW Clear rows
