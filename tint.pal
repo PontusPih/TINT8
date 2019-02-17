@@ -625,6 +625,26 @@ REDRAW,0
        JMS DRAWS              / Redraw current shape
        CSHAPE
        0
+       JMS MOVXY
+       70
+       4
+       JMS PUTS
+       SKEYS1
+       JMS MOVXY
+       70
+       5
+       JMS PUTS
+       SKEYS2
+       JMS MOVXY
+       70
+       6
+       JMS PUTS
+       SKEYS3
+       JMS MOVXY
+       70
+       7
+       JMS PUTS
+       SKEYS4
        JMP I REDRAW
 
 PAGE
@@ -1299,7 +1319,25 @@ ERASE,  ESC
 TBLOCK,TEXT "[][]"
 TINT,  TEXT "TINT"
 SLEVEL, ASCII "Starting level (0-9)?"
-       0 / String terminator
+        0 / String terminator
+
+SLINES, ASCII "Full Lines: "
+        0
+
+PAGE
+
+SCURLEV,ASCII "     Level: "
+        0
+SSCORE, ASCII "     Score: "
+        0
+SKEYS1, ASCII "H: left  L: Right"
+        0
+SKEYS2, ASCII "J: down  K: Rotate"
+        0
+SKEYS3, ASCII "SPACE: hard drop"
+        0
+SKEYS4, ASCII "R: new game F: refresh"
+        0
 
 PAGE
 
