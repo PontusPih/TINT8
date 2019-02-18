@@ -87,6 +87,7 @@
        LF=012
        CR=015
        BS=010
+       DEL=177
        BRA=133
 
 / Autoindex locations
@@ -99,6 +100,7 @@
       FLDH=026                / Field width
       FLDS=012^026            / Total size
       TERMW=0120              / Terminal width
+      NL0001=CLA IAC          / Microcoded "1"
       NL0002=CLA CLL CML RTL  / Microcoded "2"
       NL7777=CLA CMA          / Microcoded "7777" or "-1"
       NL7776=CLA CMA CLL RAL  / Microcoded "7776" or "-2"
@@ -463,7 +465,7 @@ DELAY, 0
        CIA
        DCA DECNT2
        ISZ DELAY
-DELAY2,CLA IAC
+DELAY2,NL0001
        DCA DECNT1
        ISZ DECNT1
        JMP .-1
@@ -555,8 +557,19 @@ PAGE
 / Game Over
 /
 GAMOVR,0
+       JMS MOVXY
+       0
+       14
+       JMS PUTS
+       SNAME
+       JMS READLN
+       11
+       INBUF
+       HLT
        JMS INIT
        JMP MAIN
+
+INBUF, ZBLOCK 12
 
 /
 / Init
@@ -1252,6 +1265,76 @@ ISSPC,
         JMP I PUTB
 
 /
+/ Read string from terminal. Read until CR or LF is seen. Echo input
+/
+/ First argument is max length (minimum is 1)
+/ Second argument is pointer to input buffer
+/
+MAXLEN,0
+MAXITR,0
+LASTCH,0
+READLN, 0
+       TAD I READLN           / Add max lenght of string
+       ISZ READLN             / Get next argument
+       DCA MAXLEN             / Store locally
+       TAD MAXLEN             / Get it back
+       CIA                    / Invert for countdown
+       DCA MAXITR             / Store locally for bounds check
+       NL7777                 / Preload ac with -1
+       TAD I READLN           / Get pointer to input buffer
+       ISZ READLN             / Skip argument to get return adress
+       DCA AIX                / Store in autoindex register
+READCH,
+       CLA
+       KSF                    / Is there any key pressed
+       JMP .-1                / No, try again
+       KRB                    / Yes, read key
+       AND (177)              / Get seven lower bits
+       DCA LASTCH             / Store locally
+       TAD LASTCH             / Get it back
+       TAD (-BS)              / Compare to backspace
+       SNA
+       JMP UNDOCH             / If BS, remove last read char from inbuf
+       TAD (BS-DEL)           / Compare with DEL
+       SNA                    / Is it DEL?
+       JMP READCH             / Yes, Ignore
+       TAD (DEL-CR)           / Compare to CR
+       SNA CLA
+       JMP I READLN           / Line read, return
+       TAD LASTCH             / No, get char again
+       AND (140)              / Mask out character group bits
+       SNA CLA                / Is char in nonprintable group?
+       JMP READCH             / Yes, Ignore it
+       TAD MAXITR             / Get remaining buffer space
+       SNA CLA                / Is there zero space?
+       JMP READCH             / Yes, ignore read char
+       TAD LASTCH             / No, get char again
+       DCA I AIX              / Store in result buffer.
+       TAD LASTCH             / Get it again
+       JMS PUTC               / Output
+       ISZ MAXITR             / Update read char counter
+       NOP
+       JMP READCH             / No, read another char
+
+UNDOCH,
+       CLA
+       TAD MAXLEN             / Load maximum length
+       TAD MAXITR             / Subtract space left
+       SNA CLA                / Is all space left?
+       JMP READCH             / Yes, we are at beginning. Just read another char
+       TAD (BS)               / Load BS char
+       JMS PUTC               / Output
+       NL7777                 / Load -1
+       TAD AIX                / and decrement AIX
+       DCA AIX                / put result back
+       NL7777                 / Load -1
+       TAD MAXITR             / and decrement MAXITR (which is inverted)
+       DCA MAXITR             / put result back
+       JMP READCH             / Read another char
+
+PAGE / Sigh, TODO, redo page numbering
+
+/
 / Move to X,Y
 /
 MOVXY, 0
@@ -1325,14 +1408,13 @@ ERASE,  ESC
 
 TBLOCK,TEXT "[][]"
 TINT,  TEXT "TINT"
-SLEVEL, ASCII "Starting level (0-9)?"
-        0 / String terminator
-
-SLINES, ASCII "Full Lines: "
-        0
 
 PAGE
 
+SLEVEL, ASCII "Start at level (0-9) - "
+        0 / String terminator
+SLINES, ASCII "Full Lines: "
+        0
 SCURLEV,ASCII "     Level: "
         0
 SSCORE, ASCII "     Score: "
@@ -1344,6 +1426,8 @@ SKEYS2, ASCII "J: down  K: Rotate"
 SKEYS3, ASCII "SPACE: hard drop"
         0
 SKEYS4, ASCII "R: new game F: refresh"
+        0
+SNAME,  ASCII "Enter your name: "
         0
 
 PAGE
