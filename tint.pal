@@ -9,7 +9,8 @@
 / . Use regular arguments for PUTC and ITOA
 / . Nice game over screen
 / . Next piece display
-/ . Write comments and update page layout
+/ . Write comments
+/ . Center spawned pieces
 
 / Page layout
 
@@ -561,60 +562,60 @@ GAMOVR,0
 / Init
 /
 INIT,  0
-       JMS PUTS
+       JMS PUTS               / Output screen erase control sequence
        ERASE
-       JMS MOVXY
+       JMS MOVXY              / Move cursor to absolute position
        40
        13
-       JMS PUTPS
+       JMS PUTPS              / Output [][]
        TBLOCK
-       JMS PUTS
+       JMS PUTS               / Move cursor down
        MOVD
-       JMS PUTPS
+       JMS PUTPS              / Output TINT
        TINT
-       JMS PUTS
+       JMS PUTS               / Move down
        MOVD
-       JMS PUTPS
+       JMS PUTPS              / Output [][]
        TBLOCK
-       JMS MOVXY
+       JMS MOVXY              / Move cursor to absolute position
        34
        26
-       JMS PUTS
+       JMS PUTS               / Output level select question
        SLEVEL
-RLVL,  CLA
-       KSF
-       JMP RLVL
-       KRB
-       DCA TEMP
-       TAD TEMP
-       TAD (200)
-       TAD (-"0)
-       SPA
-       JMP RLVL
-       TAD (-11)
-       SMA SZA
-       JMP RLVL
-       TAD (11)
-       DCA LEVEL
-       TAD LEVEL
-       TAD ("0)
-       JMS PUTC
-       TAD LEVEL
+RLVL,  CLA                    / Ensure empty AC
+       KSF                    / Check for input
+       JMP .-1                / No, try again
+       KRB                    / Yes, read input
+       DCA TEMP               / Store locally
+       TAD TEMP               / Get it back
+       TAD (200)              / Add parity bit
+       TAD (-"0)              / Compare to ASCII '0'
+       SPA                    / Was it zero or above?
+       JMP RLVL               / No, let user try again
+       TAD (-11)              / Yes, subract 9
+       SMA SZA                / Is the result negativt or zero?
+       JMP RLVL               / No, let user try again
+       TAD (11)               / Yes, we read a digit between 0-9, add 9 to get the number back
+       DCA LEVEL              / Store result in global LEVEL variable
+       TAD LEVEL              / Get the level back
+       TAD ("0)               / Add ASCII '0'
+       JMS PUTC               / Output to terminal
+       TAD LEVEL              / Get level again
        BSW
-       TAD (6600)
-       DCA LIMIT2
+       TAD (6600)             / Add arbitrary loop limit
+       DCA LIMIT2             / Store in global LIMIT variable
        
-RENTER,CLA
-       KSF
-       JMP RENTER
-       KRB
-       TAD (-BS)
+RENTER,CLA                    / Ensure empty AC
+       KSF                    / Check for more input
+       JMP RENTER             / No, try again
+       KRB                    / Yes, read input
+       TAD (-BS)              / Compare to backspace
        SNA
-       JMP INIT               / TODO, really redraw here?
-       TAD (BS-CR)
+       JMP INIT               / If backspace, redo init to get new input
+       TAD (BS-CR)            / Compare to enter/return.
        SZA
-       JMP RENTER
-       JMS MEMSET             / Reset game field
+       JMP RENTER             / Neither BS or CR, try again
+       JMS MEMSET             / Input done, reset game field
        FIELDP                 / Arg for MEMSET, pointer to field
        FLDS                   / Arg for MEMSET, field size
        0                      / Arg for MEMSET, value to set
