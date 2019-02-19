@@ -1433,6 +1433,79 @@ SNAME,  ASCII "Enter your name: "
 PAGE
 
 /
+/ RAND - Get random number
+/
+/ Function is DECUS No. 5/8-25
+
+IR,    HLT
+       JMP INITRN
+RAND,  HLT
+       CLA
+       TAD LEAST
+       RAL
+       AND CNST71
+       DCA TEMP74
+       TAD MIDDLE
+       AND CNST70
+       TAD TEMP74
+       RTL
+       RTL
+       RAL
+       DCA TEMP72
+       TAD LEAST
+       AND CNST70
+       RTL
+       RTL
+       RAL
+       TAD MIDDLE
+       DCA TEMP73
+       SZL
+       ISZ TEMP72
+       NOP
+       TAD LEAST
+       CLL RAL
+       SZL
+       ISZ TEMP73
+       SKP
+       ISZ TEMP72
+       NOP
+       CLL
+       TAD LEAST
+       DCA LEAST
+       TAD MIDDLE
+       RAL
+       SZL
+       ISZ TEMP72
+       NOP
+       CLL
+       TAD TEMP73
+       DCA MIDDLE
+       TAD MOST
+       RAL
+       TAD MOST
+       TAD TEMP72
+       DCA MOST
+       TAD MOST
+       JMP I RAND
+       0000
+INITRN,CLA IAC
+       DCA LEAST
+       DCA MIDDLE
+       DCA MOST
+       JMP I IR
+CNST70,0177
+CNST71,7400
+TEMP72,0
+TEMP73,0
+TEMP74,0
+/ TODO, init these with fair dice roll
+MOST,  0
+MIDDLE,0
+LEAST, 0
+
+PAGE
+
+/
 / Reserve space for game field
 /
 FIELDP, ZBLOCK FLDS
