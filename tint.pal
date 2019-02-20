@@ -2,15 +2,12 @@
 
 / TODO-list:
 / . Wallkick translation
-/ . Permute shapelist when SHPIDX wraps to get "bag of seven" behaviour
 / . Save space by storing shape data as bit fields
 / . Calculate score
 / . Store hi-scores
 / . Use regular arguments for PUTC and ITOA
-/ . Nice game over screen
 / . Next piece display
 / . Write comments
-/ . Center spawned pieces
 
 / Page layout
 
@@ -102,6 +99,8 @@
       TERMW=0120              / Terminal width
       NL0001=CLA IAC          / Microcoded "1"
       NL0002=CLA CLL CML RTL  / Microcoded "2"
+      NL0003=CLA CLL CML IAC RAL / Microcoded "3"
+      NL0006=CLA CLL CML IAC RTL / Microcoded "6"
       NL7777=CLA CMA          / Microcoded "7777" or "-1"
       NL7776=CLA CMA CLL RAL  / Microcoded "7776" or "-2"
 
@@ -527,8 +526,13 @@ SPNSHP,0
        TAD SHPIDX             / Get SHPIDX
        AND (7)                / Wrap arround at 7
        SZA                    / Did it wrap to 0 ?
-       TAD (-1)               / No, remove one, so index is 0..6
-       DCA SHPIDX             / Save
+       JMP UPDSHP             / No, update shape data
+       JMS RNDBAG             / Yes, shuffle bag-of-seven
+       SHPLST
+       CLA IAC                / Set to 1, first shape
+UPDSHP,
+       TAD (-1)               / Remove one, so index is 0..6
+       DCA SHPIDX             / Store index
        TAD (SHPLST)           / Get SHPLST address
        TAD SHPIDX             / Add index
        DCA CSHAPE             / Temporary store in current shape pointer
@@ -536,6 +540,10 @@ SPNSHP,0
        DCA CSHAPE             / Again use CSHAPE as temp
        TAD I CSHAPE           / Get size
        DCA CSHSIZ             / Store size val
+       TAD CSHSIZ             / Get size to calculate starting X position
+       AND 1                  / Get odd or even bit
+       TAD (3)                / Add three
+       DCA CXPOS              / Store as X position, piece properly centered
        ISZ CSHAPE             / Skip size
        TAD CSHAPE             / Get pointer to shape rotation list
        DCA CSHAPE             / Again store temporarily in CSHAPE
@@ -1499,9 +1507,80 @@ TEMP72,0
 TEMP73,0
 TEMP74,0
 / TODO, init these with fair dice roll
-MOST,  0
-MIDDLE,0
-LEAST, 0
+MOST,  1
+MIDDLE,2
+LEAST, 3
+
+PAGE
+
+/
+/ Fisher-Yates Shuffle to implement "bag-of-seven" behaviour.
+/
+/   v
+/ [0123456]
+/        ^
+/
+/ v in the illustration above shows randomized index "i".
+/ ^ shows last un-struck index "j". Their values will be
+/ swapped and result in:
+/
+/     v
+/ [0623451]
+/       ^
+/
+/ New value of "i" has been randomly selected and "j" has
+/ been moved to next un-struck index.
+/
+/ Modulus of the random value to get "i" is done by masking
+/ out the three least significant bits to get random value
+/ in the range 0-7. Then the value of "j" is subtracted
+/ repeatedly from "i" until it is in range 0-j.
+/
+/ TODO, make generic with regard to lenght of list
+/       by taking SIZLIM and bitmask as arguments
+
+FYI,   0
+FYJ,   0
+SIZLIM,0
+ELMATI,0
+ELMATJ,0
+ELMTMP,0
+ELMPNT,0
+
+RNDBAG,0
+       TAD I RNDBAG           / Get pointer to list to shuffle
+       ISZ RNDBAG             / Advance argument pointer
+       DCA ELMPNT             / Store pointer locally
+       TAD (-6)               / Load -6, initial value of -j
+       DCA SIZLIM             / Save locally
+       NL0006                 / Load 6, initial vaule of j
+       DCA FYJ                / Save
+       DCA FYI                / Store 0 as initial value of i
+SHUFLE,
+       JMS RAND               / Get random number
+       AND (07)               / Mask out lower bits to get value between 0-7
+       TAD SIZLIM             / Subtract maximum allowed index (value of j)
+       SMA                    / Is value negative?
+       JMP .-2                / No, subtract again
+       TAD FYJ                / Yes, add j once to get positive value in range 0-j
+       TAD ELMPNT             / Add element pointer, to swap ELMPNT[i] and ELMPNT[j]
+       DCA ELMATI             / Store resulting adress for i
+       TAD FYJ                / Get j
+       TAD ELMPNT             / Add element pointer
+       DCA ELMATJ             / Store resulting adress for j
+       TAD I ELMATI           / Get element at i
+       DCA ELMTMP             / Store temporarily
+       TAD I ELMATJ           / Get element at j
+       DCA I ELMATI           / Store at position i
+       TAD ELMTMP             / Get i element
+       DCA I ELMATJ           / Store at position j
+       ISZ SIZLIM             / Increment negative j
+       JMP RESHUF             / If Non-Zero, do another swap
+       JMP I RNDBAG           / If Zero, we are done, return
+RESHUF,
+       NL7777                 / Decrementj
+       TAD FYJ
+       JMP SHUFLE             / Perform another swap
 
 PAGE
 
