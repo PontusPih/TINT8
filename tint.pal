@@ -540,9 +540,9 @@ UPDSHP,
        DCA CSHAPE             / Again use CSHAPE as temp
        TAD I CSHAPE           / Get size
        DCA CSHSIZ             / Store size val
-       TAD CSHSIZ             / Get size to calculate starting X position
-       AND 1                  / Get odd or even bit
-       TAD (3)                / Add three
+       NL0001                 / Get bit mask for odd/even bit
+       AND CSHSIZ             / Logical AND with shape size to get X position offset
+       TAD (3)                / Add three. Pos will be 3 or 4 depending on width
        DCA CXPOS              / Store as X position, piece properly centered
        ISZ CSHAPE             / Skip size
        TAD CSHAPE             / Get pointer to shape rotation list
