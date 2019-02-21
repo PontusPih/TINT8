@@ -820,7 +820,15 @@ ENDCELL,
        MOVB24
        ISZ LOOPI              / Is all rows done?
        JMP ROWS               / No, do next row
-       JMP I DRAWF            / Yes, return / TODO draw bottom "=="
+       JMS PUTS
+       SBOTM1                 / Draw bottom line <!=====...
+       JMS PUTS               / And move cursor down one step
+       MOVD
+       JMS PUTS               / Move back 24 (2*width).
+       MOVB24
+       JMS PUTS
+       SBOTM2                 / Draw bottom line \/\/\/...
+       JMP I DRAWF            / Yes, return
 
 /
 / Draw shape
@@ -1437,6 +1445,10 @@ SKEYS4, ASCII "R: new game F: refresh"
         0
 SNAME,  ASCII "Enter your name: "
         0
+SBOTM1, ASCII "<!====================!>"
+	0
+SBOTM2, ASCII "  \/\/\/\/\/\/\/\/\/\/"
+	0
 
 PAGE
 
