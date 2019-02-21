@@ -450,9 +450,9 @@ PRVPOS,0
        JMS DELAY              / Delay for GRVLIM*4096 ISZ
        GRVLIM
        JMS GRVFLD             / Gravitate field
+       JMS DRAWF              / Redraw field
 NOROWS,
        JMS SPNSHP             / and spawn new shape
-       JMS REDRAW             / Refresh full field
        JMS IFILLM             / Check for Block Out (starting cells are blocked)
        JMP GAMOVR             / Yes, game over!
        JMP MAIN               / Return
