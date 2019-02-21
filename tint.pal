@@ -172,7 +172,7 @@ GRVTIM, -1000                 / Gravity hang timer
 LIMIT1, 0                     / TIMER1 limit
 LIMIT2, 6500                  / TIMER2 limit
 HRDLIM, -1000                 / Hard drop limit
-GRVLIM, -1000                 / Gravity hang limit
+GRVLIM, 377                   / Gravity hang limit
 
 /
 / Globally usefull routines
@@ -447,8 +447,8 @@ PRVPOS,0
        JMP NOROWS             / No full rows found
        JMS CLRROW             / Rows found, clear
        JMS DRAWF              / Redraw field
-       JMS DELAY              / Delay for x*4096 ISZ
-       377
+       JMS DELAY              / Delay for GRVLIM*4096 ISZ
+       GRVLIM
        JMS GRVFLD             / Gravitate field
 NOROWS,
        JMS SPNSHP             / and spawn new shape
