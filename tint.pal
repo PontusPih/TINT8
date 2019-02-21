@@ -816,12 +816,8 @@ ENDCELL,
        JMS PUTC
        JMS PUTS               / And move cursor down one step
        MOVD
-       TAD ("2)               / Move back 24 (2*width). TODO do this once
-       DCA BACK
-       TAD ("4)
-       DCA BACK+1
-       JMS PUTS
-       MOVB
+       JMS PUTS               / Move back 24 (2*width).
+       MOVB24
        ISZ LOOPI              / Is all rows done?
        JMP ROWS               / No, do next row
        JMP I DRAWF            / Yes, return / TODO draw bottom "=="
@@ -879,9 +875,7 @@ DBLCK,
        JMP DCONT              / Continue
 DBLNK,
        JMS PUTS               / Move cursor to "draw" transparent block
-       MOVF
-       JMS PUTS
-       MOVF
+       MOVF2
        JMP DCONT              / Continue
 DCBLCK,
        TAD (SPACE)            / Clear block by outputing: ' .'
@@ -892,14 +886,12 @@ DCONT,
        ISZ LOOPI              / Is row done?
        JMP BCOLS              / No, go to next column
        ISZ DRAPOS+1           / Yes, update Y position
-       TAD ("0)               / Move back twize the size of shape
-       DCA BACK
        TAD I DSHPST           / Size in struct
        CLL RAL                / Multiply by two
        TAD ("0)
-       DCA BACK+1
-       JMS PUTS
-       MOVB
+       DCA BACK
+       JMS PUTS               / Move back twize the size of shape
+       MOVBN
        JMS PUTS               / Move down
        MOVD
        ISZ LOOPJ              / Increment outer loop, one row done
@@ -1377,39 +1369,47 @@ UP,    "1
        0
 
 /
-/ Move down
+/ Move down, one step
 /
 MOVD,  ESC
        BRA
-DOWN,  "1
+DOWN,  / Add number here to move multiple lines. Like this: "1
        "B
        0
 
 /
-/ Move forward
+/ Move forward, twice
 /
-MOVF, ESC
+MOVF2,ESC
       BRA
-FORW, "0
-      "1
+FORW, "2
       "C
       0
 
 /
-/ Move backward
+/ Move backward, 24 steps
 /
-MOVB, ESC
-      BRA
-BACK, "2
-      "4
-      "D
-      0
+MOVB24, ESC
+        BRA
+        "2
+        "4
+        "D
+        0
+
+/
+/ Move backward, N steps
+/
+MOVBN, ESC
+       BRA
+BACK,  "0
+       "D
+       0
 
 /
 / Clear screen
 /
 ERASE,  ESC
-        133 / [
+        BRA
         "2
         "J
         0
