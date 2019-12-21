@@ -664,27 +664,27 @@ REDRAW,0
        JMS DRAWS              / Redraw current shape
        CSHAPE
        0
-       JMS MOVXY
+       JMS MOVXY              / Positions cursor
        70
        4
-       JMS PUTS
+       JMS PUTS               / Print gameplay key bindings line 1
        SKEYS1
-       JMS MOVXY
+       JMS MOVXY              / Positions cursor
        70
        5
-       JMS PUTS
+       JMS PUTS               / Print gameplay key bindings line 2
        SKEYS2
-       JMS MOVXY
+       JMS MOVXY              / Positions cursor
        70
        6
-       JMS PUTS
+       JMS PUTS               / Print gameplay key bindings line 3
        SKEYS3
-       JMS MOVXY
+       JMS MOVXY              / Positions cursor
        70
        7
-       JMS PUTS
+       JMS PUTS               / Print gameplay key bindings line 4
        SKEYS4
-       JMP I REDRAW
+       JMP I REDRAW           / Return
 
 PAGE
 
