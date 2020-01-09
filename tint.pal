@@ -1645,10 +1645,10 @@ $
 / naprawo              == right
 / poworot              == turn/rotate
 / uskorit              == speed up
-/ sbrositx             == reset
+/ sbrositx             == drop
 / pokazatx sleduIOwuIO == show next
 / steret 3tot tekct    == erase this text
-/ probel sbrositx      == space is reset
+/ probel - sbrositx    == space - drop
 / wawe imq             == your name
 / imq urowenx c4et     == name level score
 / ewe partiIO (da/net) == new game (yes/no)
