@@ -125,7 +125,8 @@
 
 LEVEL, 0
 NLINES,0
-SCORE, 0
+SCORE, 0                      / High word of double precision score
+       0                      / Low word
 
 CSHAPE,SHAL0                  / Current shape, init to first rotation of L
 CXPOS, 0                      / Current X,Y Position
@@ -281,7 +282,6 @@ ITOA,   0
         TAD I ITOA            / Get the first argument
         DCA TARGET            / Store it
         ISZ ITOA              / Advance return address
-        NOP                   / TODO bum this
         TAD ("0)              / Get ASCII value of 0
         DCA I TARGET          / Store as initial value in target
         TAD VALUE             / Get value
@@ -365,6 +365,7 @@ HKEY,
 JKEY,
        ISZ CYPOS              / Increment current Y position
        ISZ DOWNMV             / Set downward move flag
+       ISZ SCORE+1            / Softdrop awards 1
        JMP UPDATE             / Update screen
 /
 / Rotate clockwise
@@ -435,6 +436,13 @@ UPDATE,
        PSHAPE-CSHAPE          / ARG for MEMCPY, size of struct
 
        DCA DOWNMV             / Reset DOWNMV boolean
+
+       JMS MOVXY              / Positions cursor to draw score
+       20
+       6
+       JMS XUDPRNT            / Call double precision printout
+       SCORE                  / Address of score
+
        JMP MAIN               / Get next action
 
 PRVPOS,0
@@ -664,6 +672,23 @@ REDRAW,0
        JMS DRAWS              / Redraw current shape
        CSHAPE
        0
+       JMS MOVXY              / Positions cursor
+       4
+       4
+       JMS PUTS		      / Print number of lines cleared label
+       SLINES
+       JMS MOVXY              / Positions cursor
+       4
+       5
+       JMS PUTS               / Print current level label
+       SCURLEV
+       JMS MOVXY              / Positions cursor
+       4
+       6
+       JMS PUTS               / Print score label
+       SSCORE
+       JMS XUDPRNT            / Call double precision printout
+       SCORE                  / Address of score
        JMS MOVXY              / Positions cursor
        70
        4
@@ -1529,6 +1554,137 @@ TEMP74,0
 MOST,  1
 MIDDLE,2
 LEAST, 3
+
+PAGE
+
+/ The following is a transcription of DIGITAL-8-22-U-SYM made by
+/ Garrett Nievin for his implementation of the game "2048".
+/ 
+/ Thank you Garrett, now I don't have to :)
+
+/PDP-8 UNSIGNED DOUBLE PRECISION DECIMAL PRINT
+/CALL WITH NUMBER TO BE TYPED IN AC
+/RETURN TO LOCATION FOLLOWING CALLING JMS
+/calling sequence: jms udprnt   /subroutine called
+/                   hi addr     /address of high order word
+/                   return      /return with ac and l clear
+xudprnt,    0
+            cla cll
+            tad i   xudprnt     /pick up address of high-order word
+            dca     udget
+            tad i   udget       /pick up both words for use in subroutine
+            dca     udhigh
+            isz     udget
+            tad i   udget
+            dca     udlow
+            tad     udloop      /initialize digit counter for "8"
+            dca     udcnt
+            tad     udaddr      /initialize to table of powers of ten
+            dca     udptr
+            isz     xudprnt     /index linkage for correct return
+udarnd,     tad i   udptr       /pick up current power of ten for
+            isz     udptr       /use in subtraction
+            dca     udhsub
+            tad i   udptr
+            isz     udptr
+            dca     udlsub
+uddo,       cll                 /double precision subtraction
+            tad     udlsub
+            tad     udlow
+            dca     udteml
+            ral
+            tad     udhsub
+            tad     udhigh
+            snl                 /did it underflow?
+            jmp     udout       /no, count is done
+            isz     udbox       /yes, count not done yet. index digit
+            dca     udhigh      /deposit remaining portions of word
+            tad     udteml
+            dca     udlow
+            jmp     uddo        /go back and subtract again
+udout,      cla
+            tad     udbox       /pick up resulting digit
+            tad     udtwo       /add "260" to it
+            tls                 /type it out
+            tsf
+            jmp     .-1
+            cla cll
+            dca     udbox       /initialize digit to "0"
+            isz     udcnt       /have we typed "8" digits
+            jmp     udarnd      /no, determine next digit
+            jmp i   xudprnt     /yes, subroutine done, return
+udloop,     -10                 /count of "8" digits
+udaddr,     udcon1              /initial address of powers of 10
+udtwo,      260                 /icode for digits
+udcnt,      0
+udhigh,     0
+udlow,      0
+udhsub,     0
+udlsub,     0
+udbox,      0
+udteml,     0
+udget,      0
+udptr,      0
+udcon1,     3166                /powers of 10
+            4600                /-10,000,000
+            7413                /-1,000,000
+            6700
+            7747                /-100,000
+            4540
+            7775                /-10,000
+            4360
+            7777                /-1,000
+            6030
+            7777                /-100
+            7634
+            7777                /-10
+            7766
+            7777                /-1
+            7777
+
+/ UDADD, Unsigned double precision addition
+/
+/ Argument is two pointers, stores result in first argument.
+
+UDADD, 0
+       TAD I UDADD              / Get pointer to first double precision argument (P1)
+       DCA UDARES               / Store pointer locally
+       TAD I UDADD              / Get pointer again
+       DCA UDAGET               / Store locally
+       TAD I UDAGET             / Get high word of P1
+       DCA UDP1HI               / Store locally
+       ISZ UDAGET               / Move to low word adress
+       TAD I UDAGET             / Get low word of P1
+       DCA UDP1LO               / Store locally
+       
+       ISZ UDADD                / Move to second argument
+       TAD I UDADD              / Get pointer to P2
+       DCA UDAGET               / Store locally
+       TAD I UDAGET             / Get high word of P2
+       DCA UDP2HI               / Store locally
+       ISZ UDAGET               / Move to low word of P2
+       TAD I UDAGET             / Get low word of P2
+       DCA UDP2LO               / Store locally
+
+       CLL                      / Ensure link is zero
+       TAD UDP2LO               / Add P2 low word
+       TAD UDP1LO               / Add P1 low word
+       DCA UDP1LO               / Store temporarily
+       RAL                      / Move possible overflow bit to AC12
+       TAD UDP2HI               / Add P2 high word
+       TAD UDP1HI               / Add P1 high word
+       DCA I UDARES             / Store in result high word
+       ISZ UDARES               / Move to result low word 
+       TAD UDP1LO               / Get low result
+       DCA I UDARES             / Store in result low word
+       JMP I UDADD              / Return
+
+UDARES,0
+UDAGET,0
+UDP1HI,0
+UDP1LO,0
+UDP2HI,0
+UDP2LO,0
 
 PAGE
 
