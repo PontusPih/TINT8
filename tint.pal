@@ -1726,6 +1726,7 @@ UDADD, 0
        ISZ UDARES               / Move to result low word 
        TAD UDP1LO               / Get low result
        DCA I UDARES             / Store in result low word
+       ISZ UDADD                / Skip second argument
        JMP I UDADD              / Return
 
 UDARES,0
