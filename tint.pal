@@ -124,7 +124,8 @@
 /
 
 LEVEL, 0
-NLINES,0
+CLINES,0                      / Number of lines cleared in one drop
+NLINES,0                      / Number of lines cleared in total
 SCORE, 0                      / High word of double precision score
        0                      / Low word
 
@@ -461,6 +462,7 @@ PRVPOS,0
        JMS ROWSCN             / Scan for full rows
        JMP NOROWS             / No full rows found
        JMS CLRROW             / Rows found, clear
+       JMS CNTSCR             / Count score
        JMS DRAWF              / Redraw field
        JMS DELAY              / Delay for GRVLIM*4096 ISZ
        GRVLIM
@@ -657,6 +659,10 @@ RENTER,CLA                    / Ensure empty AC
        0                      / Arg for MEMSET, value to set
        JMS SPNSHP             / Spawn a new shape
        JMS REDRAW             / Draw field
+       JMS MEMCPY             / Reset scores
+       DL1SCR                 / ARG for MEMCPY, copy from default scores
+       L1SCR                  / ARG for MEMCPY, copy to score variables
+       L1SCR-DL1SCR           / ARG for MEMCPY, size of scores
        JMP I INIT             / Return
 
 PAGE
@@ -1014,22 +1020,42 @@ ROWEND,
        JMP I ROWSCN           / Return
 
 /
-/ CLRROW Clear rows
+/ CLRROW Clear rows, (and keeps score)
 /
 
 CLRROW,0
-       TAD (DELROW-1)
+       TAD (DELROW-1)         / Get pointer to before the DELROW list
        DCA AIZ                / MEMSET uses AIX, Redraw uses AIY
 RWLOOP,
-       TAD I AIZ
-       SNA
-       JMP I CLRROW
-       DCA CSTART
-       JMS MEMSET
+       TAD I AIZ              / Get pointer to deleted row
+       SNA                    / Was it null ?
+       JMP I CLRROW           / Yes, we are done
+       ISZ CLINES             / No, count number of cleared rows
+       DCA CSTART             / Put this row address in MEMSET argument
+       JMS MEMSET             / Set one row (12 blocks) to 0 (blank)
 CSTART,0
        12
        0
-       JMP RWLOOP
+       JMP RWLOOP             / Go back and get next row to clear
+
+/
+/ CNTSCR, Count score from previously cleared lines
+/
+
+CNTSCR,0
+       TAD CLINES             / Get the lines clear d this time
+       TAD NLINES             / Add total so far
+       DCA NLINES             / Store new total
+       NL7777                 / Get -1
+       TAD CLINES             / Get number of lines
+       CLL RAL                / Multiply by two
+       TAD (L1SCR)            / Add first score, gives address to correct score
+       DCA NEWSCR             / Store in argument to UDADD
+       DCA CLINES             / Zero lines cleared this time
+       JMS UDADD              / Add CURSCR to total
+       SCORE
+NEWSCR,0
+       JMP I CNTSCR           / Done
 
 /
 / GRVFLD, gravitate field.
@@ -1260,6 +1286,29 @@ SHAI3,   0;1;0;0
          0;1;0;0
          0;1;0;0
          0;1;0;0
+
+PAGE
+/
+/ Default values
+/
+DL1SCR,0                      / Clearing 1 Line,  100 points
+       0144
+DL2SCR,0                      / Clearing 2 Lines, 300 points
+       0454
+DL3SCR,0                      / Clearing 3 Lines, 400 points
+       0764
+DL4SCR,0                      / Clearing 4 Lines, 800 points
+       01440
+
+L1SCR, 0                      / Clearing 1 Line,  100 points
+       0
+L2SCR, 0                      / Clearing 2 Lines, 300 points
+       0
+L3SCR, 0                      / Clearing 3 Lines, 400 points
+       0
+L4SCR, 0                      / Clearing 4 Lines, 800 points
+       0
+
 
 PAGE
 
