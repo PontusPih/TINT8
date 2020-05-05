@@ -31,6 +31,7 @@ some intentionally left out:
 | Wall Kicks |  Planned |
 | Goals and Level Progression | Planned |
 | Scoring | Planned |
+| High Score | Planned |
 | Next Queue | Planned |
 | Hold Queue | :x: |
 | Buffer Zone | :x: |

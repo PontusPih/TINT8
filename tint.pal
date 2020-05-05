@@ -124,8 +124,10 @@
 /
 
 LEVEL, 0
+       0
 CLINES,0                      / Number of lines cleared in one drop
 NLINES,0                      / Number of lines cleared in total
+       0
 SCORE, 0                      / High word of double precision score
        0                      / Low word
 
@@ -313,6 +315,9 @@ MAIN,  TAD HRDDRP             / Get hard drop flag
        JMP MAIN               / No, check again
        TAD HRDLIM             / Yes, reset hard drop timer
        DCA HRDTIM
+       IAC                    / Every hard drop step awards an extra point
+       JMS USADD
+       SCORE
        JMP JKEY               / And fake a down move
 TCONT, ISZ TIMER1             / Has drop delay timed out?
        JMP INPUT              / No, get input
@@ -366,7 +371,9 @@ HKEY,
 JKEY,
        ISZ CYPOS              / Increment current Y position
        ISZ DOWNMV             / Set downward move flag
-       ISZ SCORE+1            / Softdrop awards 1
+       IAC                    / Softdrop awards 1
+       JMS USADD
+       SCORE
        JMP UPDATE             / Update screen
 /
 / Rotate clockwise
@@ -437,6 +444,18 @@ UPDATE,
        PSHAPE-CSHAPE          / ARG for MEMCPY, size of struct
 
        DCA DOWNMV             / Reset DOWNMV boolean
+
+       JMS MOVXY              / Positions cursor to draw number of lines
+       20
+       4
+       JMS XUDPRNT            / Call double precision printout
+       NLINES                 / Address of line count
+
+       JMS MOVXY              / Positions cursor to draw number level
+       20
+       5
+       JMS XUDPRNT            / Call double precision printout
+       LEVEL                  / Address of level
 
        JMS MOVXY              / Positions cursor to draw score
        20
@@ -683,11 +702,15 @@ REDRAW,0
        4
        JMS PUTS		      / Print number of lines cleared label
        SLINES
+       JMS XUDPRNT
+       NLINES
        JMS MOVXY              / Positions cursor
        4
        5
        JMS PUTS               / Print current level label
        SCURLEV
+       JMS XUDPRNT
+       LEVEL
        JMS MOVXY              / Positions cursor
        4
        6
@@ -1043,9 +1066,9 @@ CSTART,0
 /
 
 CNTSCR,0
-       TAD CLINES             / Get the lines clear d this time
-       TAD NLINES             / Add total so far
-       DCA NLINES             / Store new total
+       TAD CLINES             / Get the lines cleared this time
+       JMS USADD              / Add CLINES to double precision NLINES for total
+       NLINES
        NL7777                 / Get -1
        TAD CLINES             / Get number of lines
        CLL RAL                / Multiply by two
@@ -1735,6 +1758,23 @@ UDP1HI,0
 UDP1LO,0
 UDP2HI,0
 UDP2LO,0
+
+USADD, 0
+       DCA UDP1LO               / Store single precision argument
+       TAD I USADD              / Get double precision argument address
+       DCA UDP2HI               / Store pointer to high word
+       TAD I USADD              / Get pointer to low word
+       IAC                      / by adding one
+       DCA UDP2LO               / Store pointer to low word
+       ISZ USADD                / Skip argument for return
+       CLL                      / Ensure cleard link
+       TAD I UDP2LO             / Get low word
+       TAD UDP1LO               / Add argument
+       DCA I UDP2LO             / Restore low word
+       SNL                      / Was link set
+       JMP I USADD              / No, return
+       ISZ I UDP2HI             / Yes, increment high word
+       JMP I USADD              / Return
 
 PAGE
 
